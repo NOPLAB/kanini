@@ -1,6 +1,6 @@
 use std::ptr::null;
 
-/// 任意の翻訳ユニットを表す
+/// 式ステートメントを表す
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExprStatement {
     // 左にある式

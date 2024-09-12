@@ -34,7 +34,6 @@ pub fn expr_statement_parser(s: &str) -> IResult<&str, Expr> {
      */
 }
 
-/// 式のパーサ
 pub fn expr_parser(s: &str) -> IResult<&str, Expr> {
     let op_kind_parser = map(alt((char('+'), char('-'))), |op_char| match op_char {
         '+' => OpKind::Add,
