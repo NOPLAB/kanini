@@ -1,14 +1,44 @@
+use std::ptr::null;
+
+/// 式ステートメントを表す
+#[derive(Debug, PartialEq, Clone)]
+pub struct ExprStatement {
+    // 左にある式
+    left_expr: Expr,
+    // 右にある式
+    right_expr: Expr,
+}
+
+impl ExprStatement {
+    /// BinaryOpを生成する
+    pub fn new(left_expr: Expr, right_expr: Expr) -> ExprStatement {
+        ExprStatement {
+            left_expr,
+            right_expr,
+        }
+    }
+
+    pub fn eval(&self) -> ExprStatement {
+        ExprStatement {
+            left_expr: self.left_expr.clone(),
+            right_expr: self.right_expr.clone(),
+        }
+    }
+}
+
 /// 任意の式を表す
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     ConstantVal(ConstantVal),
     BinaryOp(Box<BinaryOp>),
+    ExprStatement(Box<ExprStatement>),
 }
 
 impl Expr {
     /// 式を評価する
     pub fn eval(&self) -> i32 {
         match self {
+            Expr::ExprStatement(e) => 0,
             Expr::ConstantVal(e) => e.eval(),
             Expr::BinaryOp(e) => e.eval(),
         }
@@ -16,7 +46,7 @@ impl Expr {
 }
 
 /// 定数を表す
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ConstantVal(i32);
 
 impl ConstantVal {
@@ -38,7 +68,7 @@ fn constant_val_test() {
 }
 
 /// 演算子種別
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum OpKind {
     Add,
     Sub,
@@ -47,7 +77,7 @@ pub enum OpKind {
 }
 
 /// 二項演算子を表す
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct BinaryOp {
     // 適応する演算子種別
     op_kind: OpKind,
