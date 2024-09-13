@@ -1,5 +1,3 @@
-use std::ptr::null;
-
 /// 式ステートメントを表す
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExprStatement {
@@ -38,7 +36,7 @@ impl Expr {
     /// 式を評価する
     pub fn eval(&self) -> i32 {
         match self {
-            Expr::ExprStatement(e) => 0,
+            Expr::ExprStatement(_) => 0,
             Expr::ConstantVal(e) => e.eval(),
             Expr::BinaryOp(e) => e.eval(),
         }

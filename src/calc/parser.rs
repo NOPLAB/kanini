@@ -4,12 +4,8 @@ use nom::IResult;
 use super::ast::*;
 use nom::branch::alt;
 use nom::combinator::map;
-
 use nom::combinator::opt;
-use nom::error::ErrorKind;
 use nom::sequence::tuple;
-use nom::ws;
-
 use nom::character::complete::char;
 
 /// 複合式のパーサ
