@@ -1,31 +1,31 @@
-use nom::character::complete::digit1;
-use nom::IResult;
-
 use super::ast::*;
 use nom::branch::alt;
+use nom::bytes::complete::is_a;
+use nom::character::complete::digit1;
 use nom::combinator::map;
+use nom::IResult;
 
 use nom::combinator::opt;
-use nom::error::ErrorKind;
 use nom::sequence::tuple;
-use nom::ws;
 
 use nom::character::complete::char;
 
 /// 複合式のパーサ
 pub fn expr_statement_parser(s: &str) -> IResult<&str, Expr> {
-    let x = tuple((
-        expr_parser,
-        char(';'),
-        opt(char(' ')),
-        opt(expr_statement_parser),
-    ));
+    statement_parser(s)
+}
 
-    map(x, |(head_expr, _, _, tail_expr_opt)| {
+pub fn statement_parser(s: &str) -> IResult<&str, Expr> {
+    let x = tuple((expr_parser, char(';'), opt(expr_statement_parser)));
+
+    map(x, |(head_expr, _, tail_expr_opt)| {
         if let Option::Some(tail_expr) = tail_expr_opt {
             Expr::ExprStatement(Box::new(ExprStatement::new(head_expr, tail_expr)))
         } else {
-            head_expr
+            Expr::ExprStatement(Box::new(ExprStatement::new(
+                head_expr,
+                Expr::Eof(Eof::new()),
+            )))
         }
     })(s)
 }
@@ -72,16 +72,12 @@ pub fn term_parser(s: &str) -> IResult<&str, Expr> {
 }
 /// 因子のパーサ
 pub fn factor_parser(s: &str) -> IResult<&str, Expr> {
-    let x = alt((
+    alt((
         map(constant_val_parser, |constant_val| {
             Expr::ConstantVal(constant_val)
         }),
         paren_expr_parser,
-    ))(s);
-
-    println!("因子: {:?}", x);
-
-    x
+    ))(s)
 }
 
 #[test]
@@ -106,7 +102,10 @@ pub fn paren_expr_parser(s: &str) -> IResult<&str, Expr> {
 /// 定数のパーサ
 pub fn constant_val_parser(s: &str) -> IResult<&str, ConstantVal> {
     use std::str::FromStr;
-    let (no_used, used) = digit1(s)?;
+
+    let (no_used, _) = opt(is_a(" "))(s)?;
+    let (no_used, used) = digit1(no_used)?;
+    let (no_used, _) = opt(is_a(" "))(no_used)?;
     let val = FromStr::from_str(used).unwrap();
     Ok((no_used, ConstantVal::new(val)))
 }

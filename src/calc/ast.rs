@@ -10,7 +10,7 @@ pub struct ExprStatement {
 }
 
 impl ExprStatement {
-    /// BinaryOpを生成する
+    /// 生成する
     pub fn new(left_expr: Expr, right_expr: Expr) -> ExprStatement {
         ExprStatement {
             left_expr,
@@ -24,6 +24,16 @@ impl ExprStatement {
             right_expr: self.right_expr.clone(),
         }
     }
+
+    // left_exprを取得
+    pub fn get_left_expr(&self) -> Expr {
+        self.left_expr.clone()
+    }
+
+    // right_exprを取得
+    pub fn get_right_expr(&self) -> Expr {
+        self.right_expr.clone()
+    }
 }
 
 /// 任意の式を表す
@@ -32,6 +42,7 @@ pub enum Expr {
     ConstantVal(ConstantVal),
     BinaryOp(Box<BinaryOp>),
     ExprStatement(Box<ExprStatement>),
+    Eof(Eof),
 }
 
 impl Expr {
@@ -41,6 +52,7 @@ impl Expr {
             Expr::ExprStatement(e) => 0,
             Expr::ConstantVal(e) => e.eval(),
             Expr::BinaryOp(e) => e.eval(),
+            Expr::Eof(e) => 0,
         }
     }
 }
@@ -65,6 +77,20 @@ fn constant_val_test() {
     let expect = 55;
     let constant_val = ConstantVal::new(expect);
     assert_eq!(constant_val.eval(), expect);
+}
+
+/// 終端を表す
+#[derive(Debug, PartialEq, Clone)]
+pub struct Eof;
+
+impl Eof {
+    /// ConstantVal init
+    pub fn new() -> Eof {
+        Eof
+    }
+
+    /// ConstantValの値を取得
+    pub fn eval(&self) {}
 }
 
 /// 演算子種別

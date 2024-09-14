@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod codegen;
 pub mod parser;
 
 use crate::calc::ast::Expr;
@@ -6,8 +7,8 @@ use nom::error::ErrorKind;
 use nom::Err;
 
 /// 受け取った文字列をパースして評価する
-pub fn expr_eval(s: &str) -> Result<Expr, Err<(&str, ErrorKind)>> {
-    parser::expr_statement_parser(s).map(|(_, expr)| expr)
+pub fn expr_eval(s: &str) -> Result<&str, Err<(&str, ErrorKind)>> {
+    codegen::generator(parser::expr_statement_parser(s).map(|(_, expr)| expr))
 }
 
 /*
