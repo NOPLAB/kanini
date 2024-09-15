@@ -1,5 +1,4 @@
 use std::ptr::null;
-
 /// 複合ステートメントを表す
 /// BNF =>
 /// statement := <labeled-statement>
@@ -58,7 +57,7 @@ impl Expr {
     /// 式を評価する
     pub fn eval(&self) -> i32 {
         match self {
-            Expr::ExprStatement(e) => 0,
+            Expr::ExprStatement(_) => 0,
             Expr::ConstantVal(e) => e.eval(),
             Expr::BinaryOp(e) => e.eval(),
             _ => 0,
