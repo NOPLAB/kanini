@@ -1,38 +1,46 @@
 use std::ptr::null;
 
-/// 式ステートメントを表す
+/// 複合ステートメントを表す
+/// BNF =>
+/// statement := <labeled-statement>
+///           | <expression-statement>
+///           | <compound-statement>
+///           | <selection-statement>
+///           | <iteration-statement>
+///           | <jump-statement>
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExprStatement {
-    // 左にある式
-    left_expr: Expr,
-    // 右にある式
-    right_expr: Expr,
+    // 式の集合
+    expr_stmt: Vec<Expr>,
 }
 
 impl ExprStatement {
     /// 生成する
-    pub fn new(left_expr: Expr, right_expr: Expr) -> ExprStatement {
-        ExprStatement {
-            left_expr,
-            right_expr,
-        }
+    pub fn new(val: Vec<Expr>) -> ExprStatement {
+        ExprStatement { expr_stmt: val }
+    }
+
+    pub fn add(mut self, expr: Expr) -> ExprStatement {
+        self.expr_stmt.push(expr);
+        self
     }
 
     pub fn eval(&self) -> ExprStatement {
-        ExprStatement {
-            left_expr: self.left_expr.clone(),
-            right_expr: self.right_expr.clone(),
-        }
+        todo!("stmt eval")
     }
+}
 
-    // left_exprを取得
-    pub fn get_left_expr(&self) -> Expr {
-        self.left_expr.clone()
-    }
+/// 式ステートメントを表す
+/// BNF => expression-statement ::= {<expression>}? ;
+#[derive(Debug, PartialEq, Clone)]
+pub struct Statement {
+    stmt: Expr,
+}
 
-    // right_exprを取得
-    pub fn get_right_expr(&self) -> Expr {
-        self.right_expr.clone()
+impl Statement {
+    /// ConstantVal init
+    pub fn new(val: Expr) -> Statement {
+        Statement { stmt: val }
     }
 }
 
@@ -41,7 +49,8 @@ impl ExprStatement {
 pub enum Expr {
     ConstantVal(ConstantVal),
     BinaryOp(Box<BinaryOp>),
-    ExprStatement(Box<ExprStatement>),
+    ExprStatement(Vec<Expr>),
+    Statement(Box<Expr>),
     Eof(Eof),
 }
 
@@ -52,7 +61,7 @@ impl Expr {
             Expr::ExprStatement(e) => 0,
             Expr::ConstantVal(e) => e.eval(),
             Expr::BinaryOp(e) => e.eval(),
-            Expr::Eof(e) => 0,
+            _ => 0,
         }
     }
 }

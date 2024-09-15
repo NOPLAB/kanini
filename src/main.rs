@@ -11,7 +11,7 @@ fn main() {
         let mut s = String::new();
         std::io::stdin().read_line(&mut s).ok();
         match expr_eval(&s) {
-            Ok(val) => println!("OK: {}", val),
+            Ok(val) => println!("OK: {:?}", val),
             _ => println!("構文に誤りがあります"),
         }
     }
