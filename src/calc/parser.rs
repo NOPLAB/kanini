@@ -1,28 +1,33 @@
-use nom::character::complete::digit1;
-use nom::IResult;
-
 use super::ast::*;
 use nom::branch::alt;
+use nom::bytes::complete::is_a;
+use nom::bytes::complete::tag;
+use nom::character::complete::digit1;
+use nom::character::streaming::char;
 use nom::combinator::map;
+use nom::many0;
+use nom::multi::many1;
+use nom::IResult;
+
 use nom::combinator::opt;
 use nom::sequence::tuple;
-use nom::character::complete::char;
 
 /// 複合式のパーサ
 pub fn expr_statement_parser(s: &str) -> IResult<&str, Expr> {
-    let x = tuple((
-        expr_parser,
-        char(';'),
-        opt(char(' ')),
-        opt(expr_statement_parser),
-    ));
+    let parser = many1(statement_parser);
 
-    map(x, |(head_expr, _, _, tail_expr_opt)| {
-        if let Option::Some(tail_expr) = tail_expr_opt {
-            Expr::ExprStatement(Box::new(ExprStatement::new(head_expr, tail_expr)))
-        } else {
-            head_expr
-        }
+    map(parser, |stmt| {
+        // 単数の式
+        Expr::ExprStatement(stmt)
+    })(s)
+}
+
+pub fn statement_parser(s: &str) -> IResult<&str, Expr> {
+    let x = tuple((expr_parser, char(';')));
+
+    map(x, |(head_expr, _)| {
+        // 単数の式
+        Expr::Statement(Box::new(head_expr))
     })(s)
 }
 
@@ -68,16 +73,12 @@ pub fn term_parser(s: &str) -> IResult<&str, Expr> {
 }
 /// 因子のパーサ
 pub fn factor_parser(s: &str) -> IResult<&str, Expr> {
-    let x = alt((
+    alt((
         map(constant_val_parser, |constant_val| {
             Expr::ConstantVal(constant_val)
         }),
         paren_expr_parser,
-    ))(s);
-
-    println!("因子: {:?}", x);
-
-    x
+    ))(s)
 }
 
 #[test]
@@ -102,7 +103,10 @@ pub fn paren_expr_parser(s: &str) -> IResult<&str, Expr> {
 /// 定数のパーサ
 pub fn constant_val_parser(s: &str) -> IResult<&str, ConstantVal> {
     use std::str::FromStr;
-    let (no_used, used) = digit1(s)?;
+
+    let (no_used, _) = opt(is_a(" "))(s)?;
+    let (no_used, used) = digit1(no_used)?;
+    let (no_used, _) = opt(is_a(" "))(no_used)?;
     let val = FromStr::from_str(used).unwrap();
     Ok((no_used, ConstantVal::new(val)))
 }

@@ -1,26 +1,45 @@
-/// 式ステートメントを表す
+use std::ptr::null;
+/// 複合ステートメントを表す
+/// BNF =>
+/// statement := <labeled-statement>
+///           | <expression-statement>
+///           | <compound-statement>
+///           | <selection-statement>
+///           | <iteration-statement>
+///           | <jump-statement>
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExprStatement {
-    // 左にある式
-    left_expr: Expr,
-    // 右にある式
-    right_expr: Expr,
+    // 式の集合
+    expr_stmt: Vec<Expr>,
 }
 
 impl ExprStatement {
-    /// BinaryOpを生成する
-    pub fn new(left_expr: Expr, right_expr: Expr) -> ExprStatement {
-        ExprStatement {
-            left_expr,
-            right_expr,
-        }
+    /// 生成する
+    pub fn new(val: Vec<Expr>) -> ExprStatement {
+        ExprStatement { expr_stmt: val }
+    }
+
+    pub fn add(mut self, expr: Expr) -> ExprStatement {
+        self.expr_stmt.push(expr);
+        self
     }
 
     pub fn eval(&self) -> ExprStatement {
-        ExprStatement {
-            left_expr: self.left_expr.clone(),
-            right_expr: self.right_expr.clone(),
-        }
+        todo!("stmt eval")
+    }
+}
+
+/// 式ステートメントを表す
+/// BNF => expression-statement ::= {<expression>}? ;
+#[derive(Debug, PartialEq, Clone)]
+pub struct Statement {
+    stmt: Expr,
+}
+
+impl Statement {
+    /// ConstantVal init
+    pub fn new(val: Expr) -> Statement {
+        Statement { stmt: val }
     }
 }
 
@@ -29,7 +48,9 @@ impl ExprStatement {
 pub enum Expr {
     ConstantVal(ConstantVal),
     BinaryOp(Box<BinaryOp>),
-    ExprStatement(Box<ExprStatement>),
+    ExprStatement(Vec<Expr>),
+    Statement(Box<Expr>),
+    Eof(Eof),
 }
 
 impl Expr {
@@ -39,6 +60,7 @@ impl Expr {
             Expr::ExprStatement(_) => 0,
             Expr::ConstantVal(e) => e.eval(),
             Expr::BinaryOp(e) => e.eval(),
+            _ => 0,
         }
     }
 }
@@ -63,6 +85,20 @@ fn constant_val_test() {
     let expect = 55;
     let constant_val = ConstantVal::new(expect);
     assert_eq!(constant_val.eval(), expect);
+}
+
+/// 終端を表す
+#[derive(Debug, PartialEq, Clone)]
+pub struct Eof;
+
+impl Eof {
+    /// ConstantVal init
+    pub fn new() -> Eof {
+        Eof
+    }
+
+    /// ConstantValの値を取得
+    pub fn eval(&self) {}
 }
 
 /// 演算子種別
