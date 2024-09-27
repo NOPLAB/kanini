@@ -1,4 +1,32 @@
 use std::ptr::null;
+
+/// 関数定義を表す
+///
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FunctionDefinitionParser {
+    type_specifier: TypeSpecifier,
+    expr_stmt: ExprStatement,
+}
+
+impl FunctionDefinitionParser {
+    /// 生成する
+    pub fn new(
+        type_specifier: TypeSpecifier,
+        expr_stmt: ExprStatement,
+    ) -> FunctionDefinitionParser {
+        FunctionDefinitionParser {
+            type_specifier,
+            expr_stmt,
+        }
+    }
+
+    /// 関数を評価する
+    pub fn eval(&self) -> FunctionDefinitionParser {
+        self.clone()
+    }
+}
+
 /// 複合ステートメントを表す
 /// BNF =>
 /// statement := <labeled-statement>
@@ -46,6 +74,8 @@ impl Statement {
 /// 任意の式を表す
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
+    FunctionDefinitionParser(Box<Expr>, Box<Expr>),
+    TypeSpecifier(TypeSpecifier),
     ConstantVal(ConstantVal),
     BinaryOp(Box<BinaryOp>),
     ExprStatement(Vec<Expr>),
@@ -80,6 +110,37 @@ impl ConstantVal {
         self.0
     }
 }
+
+/// 型名種別
+#[derive(Debug, PartialEq, Clone)]
+pub enum TypeKind {
+    Void,
+    Char,
+    Short,
+    Int,
+    Long,
+    Float,
+    Double,
+    Signed,
+    Unsigned,
+}
+
+/// 型を表す
+#[derive(Debug, PartialEq, Clone)]
+pub struct TypeSpecifier(TypeKind);
+
+impl TypeSpecifier {
+    /// TypeSpecifier init
+    pub fn new(val: TypeKind) -> TypeSpecifier {
+        TypeSpecifier(val)
+    }
+
+    /// TypeSpecifierの値を取得
+    pub fn eval(&self) -> TypeKind {
+        self.0.clone()
+    }
+}
+
 #[test]
 fn constant_val_test() {
     let expect = 55;

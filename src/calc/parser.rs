@@ -5,27 +5,82 @@ use nom::bytes::complete::tag;
 use nom::character::complete::digit1;
 use nom::character::streaming::char;
 use nom::combinator::map;
-use nom::many0;
+use nom::multi::many0;
 use nom::multi::many1;
 use nom::IResult;
 
 use nom::combinator::opt;
 use nom::sequence::tuple;
 
+/// 翻訳ユニットのパーサ
+pub fn translation_unit_parser(s: &str) -> IResult<&str, Expr> {
+    let parser = many1(external_declaration_parser);
+
+    map(parser, |stmt| {
+        // 単数の式ステートメント
+        Expr::ExprStatement(stmt)
+    })(s)
+}
+
+/// 外部宣言のパーサ
+pub fn external_declaration_parser(s: &str) -> IResult<&str, Expr> {
+    return function_definition_parser(s);
+}
+
+/// 関数宣言のパーサ
+pub fn function_definition_parser(s: &str) -> IResult<&str, Expr> {
+    let parser = tuple((declaration_specifier_parser, compound_statement_parser));
+    map(parser, |(declaration_specifier, compound_statement)| {
+        // 単数の式ステートメント
+        Expr::FunctionDefinitionParser(
+            Box::new(declaration_specifier),
+            Box::new(compound_statement),
+        )
+    })(s)
+}
+
+///
+pub fn declaration_specifier_parser(s: &str) -> IResult<&str, Expr> {
+    return type_specifier_parser(s);
+}
+
+/// 型名のパーサ
+pub fn type_specifier_parser(s: &str) -> IResult<&str, Expr> {
+    let parser = map(alt((tag("void"), tag("int"))), |type_str| match type_str {
+        "int" => TypeKind::Int,
+        _ => panic!("error!"),
+    });
+
+    map(parser, |head_expr| {
+        Expr::TypeSpecifier(TypeSpecifier::new(head_expr))
+    })(s)
+}
+
+/// compound-statementのパーサ
+pub fn compound_statement_parser(s: &str) -> IResult<&str, Expr> {
+    let (no_used, _) = opt(is_a(" "))(s)?;
+    let (no_used, _) = char('{')(no_used)?;
+    let (no_used, expr) = expr_statement_parser(no_used)?;
+    let (no_used, _) = char('}')(no_used)?;
+    let (no_used, _) = opt(is_a(" "))(no_used)?;
+
+    Ok((no_used, expr))
+}
+
 /// 複合式のパーサ
 pub fn expr_statement_parser(s: &str) -> IResult<&str, Expr> {
     let parser = many1(statement_parser);
 
     map(parser, |stmt| {
-        // 単数の式
+        // 単数の式ステートメント
         Expr::ExprStatement(stmt)
     })(s)
 }
 
 pub fn statement_parser(s: &str) -> IResult<&str, Expr> {
-    let x = tuple((expr_parser, char(';')));
+    let (x) = tuple((expr_parser, char(';'), opt(is_a(" "))));
 
-    map(x, |(head_expr, _)| {
+    map(x, |(head_expr, _, _)| {
         // 単数の式
         Expr::Statement(Box::new(head_expr))
     })(s)
