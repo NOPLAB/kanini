@@ -5,7 +5,6 @@ use nom::bytes::complete::tag;
 use nom::character::complete::digit1;
 use nom::character::streaming::char;
 use nom::combinator::map;
-use nom::multi::many0;
 use nom::multi::many1;
 use nom::IResult;
 
@@ -78,7 +77,7 @@ pub fn expr_statement_parser(s: &str) -> IResult<&str, Expr> {
 }
 
 pub fn statement_parser(s: &str) -> IResult<&str, Expr> {
-    let (x) = tuple((expr_parser, char(';'), opt(is_a(" "))));
+    let x = tuple((expr_parser, char(';'), opt(is_a(" "))));
 
     map(x, |(head_expr, _, _)| {
         // 単数の式
