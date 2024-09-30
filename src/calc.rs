@@ -7,7 +7,7 @@ use nom::Err;
 
 /// 受け取った文字列をパースして評価する
 pub fn expr_eval(s: &str) -> Result<Expr, Err<(&str, ErrorKind)>> {
-    parser::expr_statement_parser(s).map(|(_, expr)| expr)
+    parser::translation_unit_parser(s).map(|(_, expr)| expr)
 }
 
 /*

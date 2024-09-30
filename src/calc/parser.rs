@@ -1,31 +1,135 @@
 use super::ast::*;
 use nom::branch::alt;
+use nom::branch::permutation;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::tag;
+use nom::character::complete::alpha1;
 use nom::character::complete::digit1;
+use nom::character::complete::multispace0;
 use nom::character::streaming::char;
 use nom::combinator::map;
-use nom::many0;
 use nom::multi::many1;
+use nom::permutation;
 use nom::IResult;
 
 use nom::combinator::opt;
 use nom::sequence::tuple;
+
+/// 翻訳ユニットのパーサ
+pub fn translation_unit_parser(s: &str) -> IResult<&str, Expr> {
+    let parser = many1(external_declaration_parser);
+
+    map(parser, |stmt| {
+        // 単数の式ステートメント
+        Expr::ExprStatement(stmt)
+    })(s)
+}
+
+/// 外部宣言のパーサ
+pub fn external_declaration_parser(s: &str) -> IResult<&str, Expr> {
+    return function_definition_parser(s);
+}
+
+/// 関数宣言のパーサ
+pub fn function_definition_parser(s: &str) -> IResult<&str, Expr> {
+    let parser = tuple((
+        many1(declaration_specifier_parser),
+        declarator_parser,
+        compound_statement_parser,
+    ));
+    map(
+        parser,
+        |(declaration_specifier, declarator, compound_statement)| {
+            // 単数の式ステートメント
+            Expr::FunctionDefinitionParser(
+                Box::new(declaration_specifier),
+                Box::new(declarator),
+                Box::new(compound_statement),
+            )
+        },
+    )(s)
+}
+
+/// 宣言指定子のパーサ
+pub fn declaration_specifier_parser(s: &str) -> IResult<&str, Expr> {
+    return type_specifier_parser(s);
+}
+
+/// タイプ指定子のパーサ
+pub fn type_specifier_parser(s: &str) -> IResult<&str, Expr> {
+    let parser = map(
+        permutation((
+            multispace0,
+            alt((
+                tag("void"),
+                tag("int"),
+                tag("char"),
+                tag("short"),
+                tag("long"),
+                tag("float"),
+                tag("double"),
+                tag("signed"),
+                tag("unsigned"),
+            )),
+            multispace0,
+        )),
+        |(_, type_str, _)| -> Expr {
+            let type_specifier = match type_str {
+                "void" => TypeKind::Void,
+                "char" => TypeKind::Char,
+                "short" => TypeKind::Short,
+                "int" => TypeKind::Int,
+                "long" => TypeKind::Long,
+                "float" => TypeKind::Float,
+                "double" => TypeKind::Double,
+                "signed" => TypeKind::Signed,
+                "unsigned" => TypeKind::Unsigned,
+                _ => panic!("error!"),
+            };
+            return Expr::TypeSpecifier(TypeSpecifier::new(type_specifier));
+        },
+    )(s);
+
+    parser
+}
+
+/// compound-statementのパーサ
+pub fn compound_statement_parser(s: &str) -> IResult<&str, Expr> {
+    let (no_used, _) = opt(is_a(" "))(s)?;
+    let (no_used, _) = char('{')(no_used)?;
+    let (no_used, expr) = expr_statement_parser(no_used)?;
+    let (no_used, _) = char('}')(no_used)?;
+    let (no_used, _) = opt(is_a(" "))(no_used)?;
+
+    Ok((no_used, expr))
+}
+
+/// declaratorのパーサ
+pub fn declarator_parser(s: &str) -> IResult<&str, Expr> {
+    return direct_declarator(s);
+}
+
+/// 直接宣言者のパーサ
+pub fn direct_declarator(s: &str) -> IResult<&str, Expr> {
+    map(identifier_parser, |identifier_val| {
+        Expr::Identifier(identifier_val)
+    })(s)
+}
 
 /// 複合式のパーサ
 pub fn expr_statement_parser(s: &str) -> IResult<&str, Expr> {
     let parser = many1(statement_parser);
 
     map(parser, |stmt| {
-        // 単数の式
+        // 単数の式ステートメント
         Expr::ExprStatement(stmt)
     })(s)
 }
 
 pub fn statement_parser(s: &str) -> IResult<&str, Expr> {
-    let x = tuple((expr_parser, char(';')));
+    let x = tuple((expr_parser, char(';'), opt(is_a(" "))));
 
-    map(x, |(head_expr, _)| {
+    map(x, |(head_expr, _, _)| {
         // 単数の式
         Expr::Statement(Box::new(head_expr))
     })(s)
@@ -109,6 +213,14 @@ pub fn constant_val_parser(s: &str) -> IResult<&str, ConstantVal> {
     let (no_used, _) = opt(is_a(" "))(no_used)?;
     let val = FromStr::from_str(used).unwrap();
     Ok((no_used, ConstantVal::new(val)))
+}
+
+/// 識別子のパーサ
+pub fn identifier_parser(s: &str) -> IResult<&str, Identifier> {
+    let (no_used, _) = opt(is_a(" "))(s)?;
+    let (no_used, used) = alpha1(no_used)?;
+    let (no_used, _) = opt(is_a(" "))(no_used)?;
+    Ok((no_used, Identifier::new(used.to_string())))
 }
 
 #[test]
