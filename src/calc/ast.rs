@@ -1,9 +1,10 @@
 /// 関数定義を表す
-///
+/// <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement>
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionDefinitionParser {
     type_specifier: TypeSpecifier,
+    declarator: Identifier,
     expr_stmt: ExprStatement,
 }
 
@@ -11,10 +12,12 @@ impl FunctionDefinitionParser {
     /// 生成する
     pub fn new(
         type_specifier: TypeSpecifier,
+        declarator: Identifier,
         expr_stmt: ExprStatement,
     ) -> FunctionDefinitionParser {
         FunctionDefinitionParser {
             type_specifier,
+            declarator,
             expr_stmt,
         }
     }
@@ -28,8 +31,7 @@ impl FunctionDefinitionParser {
 /// 複合ステートメントを表す
 /// BNF =>
 /// statement := <labeled-statement>
-///           | <expression-statement>
-///           | <compound-statement>
+///           | <expression-statement> | <compound-statement>
 ///           | <selection-statement>
 ///           | <iteration-statement>
 ///           | <jump-statement>
@@ -72,8 +74,9 @@ impl Statement {
 /// 任意の式を表す
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
-    FunctionDefinitionParser(Box<Expr>, Box<Expr>),
+    FunctionDefinitionParser(Box<Vec<Expr>>, Box<Expr>, Box<Expr>),
     TypeSpecifier(TypeSpecifier),
+    Identifier(Identifier),
     ConstantVal(ConstantVal),
     BinaryOp(Box<BinaryOp>),
     ExprStatement(Vec<Expr>),
@@ -90,22 +93,6 @@ impl Expr {
             Expr::BinaryOp(e) => e.eval(),
             _ => 0,
         }
-    }
-}
-
-/// 定数を表す
-#[derive(Debug, PartialEq, Clone)]
-pub struct ConstantVal(i32);
-
-impl ConstantVal {
-    /// ConstantVal init
-    pub fn new(val: i32) -> ConstantVal {
-        ConstantVal(val)
-    }
-
-    /// ConstantValの値を取得
-    pub fn eval(&self) -> i32 {
-        self.0
     }
 }
 
@@ -219,4 +206,36 @@ fn plus_op_test() {
     let expect = 13 * (5 + 1);
 
     assert_eq!(binary_op.eval(), expect);
+}
+
+/// 定数を表す
+#[derive(Debug, PartialEq, Clone)]
+pub struct ConstantVal(i32);
+
+impl ConstantVal {
+    /// ConstantVal init
+    pub fn new(val: i32) -> ConstantVal {
+        ConstantVal(val)
+    }
+
+    /// ConstantValの値を取得
+    pub fn eval(&self) -> i32 {
+        self.0
+    }
+}
+
+/// 文字列を表す
+#[derive(Debug, PartialEq, Clone)]
+pub struct Identifier(String);
+
+impl Identifier {
+    /// ConstantVal init
+    pub fn new(val: String) -> Identifier {
+        Identifier(val)
+    }
+
+    /// Identifierの値を取得
+    pub fn eval(&self) -> String {
+        self.0.clone()
+    }
 }
