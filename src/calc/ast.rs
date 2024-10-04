@@ -1,6 +1,5 @@
 /// 関数定義を表す
 /// <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement>
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionDefinitionParser {
     type_specifier: TypeSpecifier,
@@ -28,8 +27,37 @@ impl FunctionDefinitionParser {
     }
 }
 
+/// Declarattor
+#[derive(Debug, PartialEq, Clone)]
+pub struct Declarator {
+    //pointer: Pointer,
+    direct_declarator: Expr,
+}
+
+impl Declarator {
+    pub fn new(val: Expr) -> Declarator {
+        Declarator {
+            direct_declarator: val,
+        }
+    }
+    /// Declaratorを評価する
+    pub fn eval(&self) -> Declarator {
+        self.clone()
+    }
+}
+/*
+/// DirectDeclarattor
+#[derive(Debug, PartialEq, Clone)]
+pub struct DirectDeclarattor {
+    identifer: Identifier,
+}
+impl DirectDeclarator {
+    pub fn new(identifer: Box<Identifier>, declarator: Box<DirectDeclarattor>) -> DirectDeclarator {
+    }
+}
+*/
+
 /// 複合ステートメントを表す
-/// BNF =>
 /// statement := <labeled-statement>
 ///           | <expression-statement> | <compound-statement>
 ///           | <selection-statement>
@@ -58,7 +86,7 @@ impl ExprStatement {
 }
 
 /// 式ステートメントを表す
-/// BNF => expression-statement ::= {<expression>}? ;
+/// expression-statement ::= {<expression>}? ;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Statement {
     stmt: Expr,
@@ -74,7 +102,8 @@ impl Statement {
 /// 任意の式を表す
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
-    FunctionDefinitionParser(Box<Vec<Expr>>, Box<Expr>, Box<Expr>),
+    FunctionDefinitionParser(Box<Vec<Expr>>, Box<Vec<Expr>>, Box<Expr>),
+    Declarator(Box<Expr>),
     TypeSpecifier(TypeSpecifier),
     Identifier(Identifier),
     ConstantVal(ConstantVal),

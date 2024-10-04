@@ -34,7 +34,7 @@ pub fn external_declaration_parser(s: &str) -> IResult<&str, Expr> {
 pub fn function_definition_parser(s: &str) -> IResult<&str, Expr> {
     let parser = tuple((
         many1(declaration_specifier_parser),
-        declarator_parser,
+        many1(declarator_parser),
         compound_statement_parser,
     ));
     map(
@@ -51,11 +51,26 @@ pub fn function_definition_parser(s: &str) -> IResult<&str, Expr> {
 }
 
 /// 宣言指定子のパーサ
+/// <declaration-specifier> ::= <storage-class-specifier>
+///                          | <type-specifier>
+///                          | <type-qualifier>
 pub fn declaration_specifier_parser(s: &str) -> IResult<&str, Expr> {
     return type_specifier_parser(s);
 }
 
 /// タイプ指定子のパーサ
+/// <type-specifier> ::= void
+///                    | char
+///                    | short
+///                    | int
+///                    | long
+///                    | float
+///                    | double
+///                    | signed
+///                    | unsigned
+///                    | <struct-or-union-specifier>
+///                    | <enum-specifier>
+///                    | <typedef-name>
 pub fn type_specifier_parser(s: &str) -> IResult<&str, Expr> {
     let parser = map(
         permutation((
@@ -93,6 +108,27 @@ pub fn type_specifier_parser(s: &str) -> IResult<&str, Expr> {
     parser
 }
 
+/// declaratorのパーサ
+/// <declarator> ::= {<pointer>}? <direct-declarator>
+pub fn declarator_parser(s: &str) -> IResult<&str, Expr> {
+    return direct_declarator(s);
+}
+
+/// 直接宣言者のパーサ
+/// <direct-declarator> ::= <identifier>
+///                       | ( <declarator> )
+///                       | <direct-declarator> [ {<constant-expression>}? ]
+///                       | <direct-declarator> ( <parameter-type-list> )
+///                       | <direct-declarator> ( {<identifier>}* )
+pub fn direct_declarator(s: &str) -> IResult<&str, Expr> {
+    let result = tuple((identifier_parser, opt(char('(')), opt(char(')'))));
+
+    map(result, |(head_expr, _, _)| {
+        // 単数の式
+        Expr::Identifier(head_expr)
+    })(s)
+}
+
 /// compound-statementのパーサ
 pub fn compound_statement_parser(s: &str) -> IResult<&str, Expr> {
     let (no_used, _) = opt(is_a(" "))(s)?;
@@ -102,18 +138,6 @@ pub fn compound_statement_parser(s: &str) -> IResult<&str, Expr> {
     let (no_used, _) = opt(is_a(" "))(no_used)?;
 
     Ok((no_used, expr))
-}
-
-/// declaratorのパーサ
-pub fn declarator_parser(s: &str) -> IResult<&str, Expr> {
-    return direct_declarator(s);
-}
-
-/// 直接宣言者のパーサ
-pub fn direct_declarator(s: &str) -> IResult<&str, Expr> {
-    map(identifier_parser, |identifier_val| {
-        Expr::Identifier(identifier_val)
-    })(s)
 }
 
 /// 複合式のパーサ
