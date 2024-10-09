@@ -40,6 +40,11 @@ impl Declarator {
             direct_declarator: Box::new(val),
         }
     }
+    pub fn dummy() -> Declarator {
+        Declarator {
+            direct_declarator: Box::new(Expr::Eof(Eof::new())),
+        }
+    }
     /// Declaratorを評価する
     pub fn eval(&self) -> Declarator {
         self.clone()

@@ -159,21 +159,26 @@ pub fn parameter_type_list(s: &str) -> IResult<&str, Expr> {
 /// <parameter-list> ::= <parameter-declaration>
 ///                    | <parameter-list> , <parameter-declaration>
 pub fn parameter_list(s: &str) -> IResult<&str, Expr> {
-    let result = tuple((parameter_delaration, opt(char(','))));
+    let result = tuple((parameter_declaration, opt(char(','))));
     map(result, |(head_expr, _)| head_expr)(s)
 }
 
 /// <parameter-declaration> ::= {<declaration-specifier>}+ <declarator>
 ///                           | {<declaration-specifier>}+ <abstract-declarator>
 ///                           | {<declaration-specifier>}+
-pub fn parameter_delaration(s: &str) -> IResult<&str, Expr> {
-    declaration_specifier_parser(s)
+pub fn parameter_declaration(s: &str) -> IResult<&str, Expr> {
+    let parser = tuple((many1(declaration_specifier_parser), opt(declarator_parser)));
+
+    map(parser, |(dsp, dp_apt)| {
+        if let Option::Some(dp) = dp_apt {
+            Expr::ParameterDeclaration(dsp, Declarator::new(dp))
+        } else {
+            Expr::ParameterDeclaration(dsp, Declarator::dummy())
+        }
+    })(s)
     /*
         let parser = tuple((many1(declaration_specifier_parser), declarator_parser));
 
-        map(parser, |(dsp, dp)| {
-            Expr::ParameterDeclaration(dsp, Box::new(dp))
-        })(s)
     */
 }
 
