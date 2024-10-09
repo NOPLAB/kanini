@@ -31,13 +31,13 @@ impl FunctionDefinitionParser {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Declarator {
     //pointer: Pointer,
-    direct_declarator: Expr,
+    direct_declarator: Box<Expr>,
 }
 
 impl Declarator {
     pub fn new(val: Expr) -> Declarator {
         Declarator {
-            direct_declarator: val,
+            direct_declarator: Box::new(val),
         }
     }
     /// Declaratorを評価する
@@ -85,6 +85,35 @@ impl ExprStatement {
     }
 }
 
+/// 引数リストを表す
+/// expression-statement ::= {<expression>}? ;
+#[derive(Debug, PartialEq, Clone)]
+pub struct ParameterTypeList {
+    parameter: Vec<Expr>,
+}
+
+impl ParameterTypeList {
+    pub fn new(val: Vec<Expr>) -> ParameterTypeList {
+        ParameterTypeList { parameter: val }
+    }
+}
+
+/// 型+変数を表す
+#[derive(Debug, PartialEq, Clone)]
+pub struct ParameterDeclaration {
+    declaration_specifier: Vec<Expr>,
+    declarator: Declarator,
+}
+
+impl ParameterDeclaration {
+    pub fn new(ds: Vec<Expr>, d: Declarator) -> ParameterDeclaration {
+        ParameterDeclaration {
+            declaration_specifier: ds,
+            declarator: d,
+        }
+    }
+}
+
 /// 式ステートメントを表す
 /// expression-statement ::= {<expression>}? ;
 #[derive(Debug, PartialEq, Clone)]
@@ -103,6 +132,8 @@ impl Statement {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     FunctionDefinitionParser(Box<Vec<Expr>>, Box<Vec<Expr>>, Box<Expr>),
+    ParameterTypeList(ParameterTypeList),
+    ParameterDeclaration(Vec<Expr>, Declarator),
     Declarator(Box<Expr>),
     TypeSpecifier(TypeSpecifier),
     Identifier(Identifier),

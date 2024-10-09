@@ -4,12 +4,12 @@ use nom::branch::permutation;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::tag;
 use nom::character::complete::alpha1;
+use nom::character::complete::char;
 use nom::character::complete::digit1;
 use nom::character::complete::multispace0;
-use nom::character::streaming::char;
 use nom::combinator::map;
+use nom::multi::many0;
 use nom::multi::many1;
-use nom::permutation;
 use nom::IResult;
 
 use nom::combinator::opt;
@@ -31,6 +31,7 @@ pub fn external_declaration_parser(s: &str) -> IResult<&str, Expr> {
 }
 
 /// 関数宣言のパーサ
+/// <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement>
 pub fn function_definition_parser(s: &str) -> IResult<&str, Expr> {
     let parser = tuple((
         many1(declaration_specifier_parser),
@@ -121,12 +122,59 @@ pub fn declarator_parser(s: &str) -> IResult<&str, Expr> {
 ///                       | <direct-declarator> ( <parameter-type-list> )
 ///                       | <direct-declarator> ( {<identifier>}* )
 pub fn direct_declarator(s: &str) -> IResult<&str, Expr> {
-    let result = tuple((identifier_parser, opt(char('(')), opt(char(')'))));
+    let result = tuple((
+        identifier_parser,
+        opt(tuple((char('('), parameter_type_list, char(')')))),
+        opt(tuple((char('('), many0(identifier_parser), char(')')))),
+    ));
+    map(
+        result,
+        |(head_expr, direct_declarator_parameter_type_list, direct_declarator_identifer)| {
+            if let Option::Some(i) = direct_declarator_parameter_type_list {
+                // 引数のリスト
+                i.1
+            } else if let Option::Some(i) = direct_declarator_identifer {
+                println!("direct_declarator_identifer: {:?}", i);
+                // 単数の式
+                Expr::Identifier(head_expr)
+            } else {
+                // 単数の式
+                Expr::Identifier(head_expr)
+            }
+        },
+    )(s)
+}
 
-    map(result, |(head_expr, _, _)| {
-        // 単数の式
-        Expr::Identifier(head_expr)
+/// <parameter-type-list> ::= <parameter-list>
+///                         | <parameter-list> , ...
+
+pub fn parameter_type_list(s: &str) -> IResult<&str, Expr> {
+    let result = tuple((opt(is_a(" ")), many1(parameter_list), opt(is_a(" "))));
+
+    map(result, |(_, param_list, _)| {
+        Expr::ParameterTypeList(ParameterTypeList::new(param_list))
     })(s)
+}
+
+/// <parameter-list> ::= <parameter-declaration>
+///                    | <parameter-list> , <parameter-declaration>
+pub fn parameter_list(s: &str) -> IResult<&str, Expr> {
+    let result = tuple((parameter_delaration, opt(char(','))));
+    map(result, |(head_expr, _)| head_expr)(s)
+}
+
+/// <parameter-declaration> ::= {<declaration-specifier>}+ <declarator>
+///                           | {<declaration-specifier>}+ <abstract-declarator>
+///                           | {<declaration-specifier>}+
+pub fn parameter_delaration(s: &str) -> IResult<&str, Expr> {
+    declaration_specifier_parser(s)
+    /*
+        let parser = tuple((many1(declaration_specifier_parser), declarator_parser));
+
+        map(parser, |(dsp, dp)| {
+            Expr::ParameterDeclaration(dsp, Box::new(dp))
+        })(s)
+    */
 }
 
 /// compound-statementのパーサ
