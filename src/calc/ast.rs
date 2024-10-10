@@ -1,6 +1,5 @@
 /// 関数定義を表す
 /// <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement>
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionDefinitionParser {
     type_specifier: TypeSpecifier,
@@ -28,8 +27,42 @@ impl FunctionDefinitionParser {
     }
 }
 
+/// Declarattor
+#[derive(Debug, PartialEq, Clone)]
+pub struct Declarator {
+    //pointer: Pointer,
+    direct_declarator: Box<Expr>,
+}
+
+impl Declarator {
+    pub fn new(val: Expr) -> Declarator {
+        Declarator {
+            direct_declarator: Box::new(val),
+        }
+    }
+    pub fn dummy() -> Declarator {
+        Declarator {
+            direct_declarator: Box::new(Expr::Eof(Eof::new())),
+        }
+    }
+    /// Declaratorを評価する
+    pub fn eval(&self) -> Declarator {
+        self.clone()
+    }
+}
+/*
+/// DirectDeclarattor
+#[derive(Debug, PartialEq, Clone)]
+pub struct DirectDeclarattor {
+    identifer: Identifier,
+}
+impl DirectDeclarator {
+    pub fn new(identifer: Box<Identifier>, declarator: Box<DirectDeclarattor>) -> DirectDeclarator {
+    }
+}
+*/
+
 /// 複合ステートメントを表す
-/// BNF =>
 /// statement := <labeled-statement>
 ///           | <expression-statement> | <compound-statement>
 ///           | <selection-statement>
@@ -57,8 +90,37 @@ impl ExprStatement {
     }
 }
 
+/// 引数リストを表す
+/// expression-statement ::= {<expression>}? ;
+#[derive(Debug, PartialEq, Clone)]
+pub struct ParameterTypeList {
+    parameter: Vec<Expr>,
+}
+
+impl ParameterTypeList {
+    pub fn new(val: Vec<Expr>) -> ParameterTypeList {
+        ParameterTypeList { parameter: val }
+    }
+}
+
+/// 型+変数を表す
+#[derive(Debug, PartialEq, Clone)]
+pub struct ParameterDeclaration {
+    declaration_specifier: Vec<Expr>,
+    declarator: Declarator,
+}
+
+impl ParameterDeclaration {
+    pub fn new(ds: Vec<Expr>, d: Declarator) -> ParameterDeclaration {
+        ParameterDeclaration {
+            declaration_specifier: ds,
+            declarator: d,
+        }
+    }
+}
+
 /// 式ステートメントを表す
-/// BNF => expression-statement ::= {<expression>}? ;
+/// expression-statement ::= {<expression>}? ;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Statement {
     stmt: Expr,
@@ -74,7 +136,10 @@ impl Statement {
 /// 任意の式を表す
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
-    FunctionDefinitionParser(Box<Vec<Expr>>, Box<Expr>, Box<Expr>),
+    FunctionDefinitionParser(Box<Vec<Expr>>, Box<Vec<Expr>>, Box<Expr>),
+    ParameterTypeList(ParameterTypeList),
+    ParameterDeclaration(Vec<Expr>, Declarator),
+    Declarator(Box<Expr>),
     TypeSpecifier(TypeSpecifier),
     Identifier(Identifier),
     ConstantVal(ConstantVal),
