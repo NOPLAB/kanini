@@ -12,10 +12,8 @@ use nom::multi::many0;
 use nom::multi::many1;
 use nom::IResult;
 
-use nom::character::complete::space0;
 use nom::combinator::opt;
 use nom::sequence::tuple;
-use nom::sequence::{delimited, pair};
 
 /// 翻訳ユニットのパーサ
 pub fn translation_unit_parser(s: &str) -> IResult<&str, Expr> {
@@ -133,53 +131,28 @@ pub fn declarator_parser(s: &str) -> IResult<&str, Expr> {
 ///                       | <direct-declarator> ( {<identifier>}* )
 pub fn direct_declarator(s: &str) -> IResult<&str, Expr> {
     let directdeclarator_declarator = tuple((tag("("), declarator_parser, tag(")")));
-    println!("{}", s);
 
-    let directdeclarator_parametertypelist = tuple((identifier_parser, char('('), char(')')));
-    /*
     let directdeclarator_parametertypelist =
         tuple((identifier_parser, char('('), parameter_type_list, char(')')));
 
-    */
-
     let identifer = identifier_parser;
-    //let directdeclarator_identifier = tuple((tag("("), many0(identifier_parser), tag(")")));
 
     alt((
-        map(identifer, |i| i),
-        map(directdeclarator_declarator, |dd| dd.1),
-        map(directdeclarator_parametertypelist, |dp| dp.0),
-    ))(s)
-
-    /*
-
-
-
-    alt((
-        map(identifier_parser, |identifer| {
-            println!("{:?}", identifer);
-            Expr::Identifier(identifer)
-        }),
-        map(tuple((direct_declarator, char('('), char(')'))), |a| {
-            Expr::DirectDeclarator(DirectDeclarator::directdeclarator_identifier(
-                a.0,
-                Expr::Identifier(Identifier::new(String::from("OK"))),
+        map(directdeclarator_parametertypelist, |dp| {
+            Expr::DirectDeclarator(DirectDeclarator::directdeclarator_parametertypelist(
+                dp.0, dp.2,
             ))
         }),
+        map(directdeclarator_declarator, |dd| dd.1),
+        map(identifer, |i| i),
     ))(s)
-
-            tuple((direct_declarator, char('('), parameter_type_list, char(')'))),
-            tuple((char('('), many0(identifier_parser), char(')'))),
-        )),
-        |(head_expr)| match head_expr {},
-    );*/
 }
 
 /// <parameter-type-list> ::= <parameter-list>
 ///                         | <parameter-list> , ...
 
 pub fn parameter_type_list(s: &str) -> IResult<&str, Expr> {
-    let result = tuple((opt(is_a(" ")), many1(parameter_list), opt(is_a(" "))));
+    let result = tuple((opt(is_a(" ")), many0(parameter_list), opt(is_a(" "))));
 
     map(result, |(_, param_list, _)| {
         Expr::ParameterTypeList(ParameterTypeList::new(param_list))
@@ -213,14 +186,62 @@ pub fn parameter_declaration(s: &str) -> IResult<&str, Expr> {
 }
 
 /// compound-statementのパーサ
+/// <statement> ::= <labeled-statement>
+///               | <expression-statement>
+///               | <compound-statement>
+///               | <selection-statement>
+///               | <iteration-statement>
+///               | <jump-statement>
 pub fn compound_statement_parser(s: &str) -> IResult<&str, Expr> {
     let (no_used, _) = opt(is_a(" "))(s)?;
     let (no_used, _) = char('{')(no_used)?;
-    let (no_used, expr) = expr_statement_parser(no_used)?;
+
+    let expr_statement = expr_statement_parser;
+    let selection_statement = selection_statement_parser;
+    let jump_statement = jump_statement_parser;
+
+    let (no_used, expr) = alt((
+        map(expr_statement, |es| {
+            println!("{:?}", es);
+            return es;
+        }),
+        map(jump_statement, |js| {
+            println!("{:?}", js);
+            return js;
+        }),
+        map(selection_statement, |ss| {
+            println!("{:?}", ss);
+            return ss;
+        }),
+    ))(no_used)?;
+
     let (no_used, _) = char('}')(no_used)?;
     let (no_used, _) = opt(is_a(" "))(no_used)?;
 
     Ok((no_used, expr))
+}
+
+pub fn selection_statement_parser(s: &str) -> IResult<&str, Expr> {
+    let parser = many1(statement_parser);
+
+    map(parser, |stmt| {
+        // 単数の式ステートメント
+        Expr::ExprStatement(stmt)
+    })(s)
+}
+
+/// <jump-statement> ::= goto <identifier> ;
+///                    | continue ;
+///                    | break ;
+///                    | return {<expression>}? ;
+
+pub fn jump_statement_parser(s: &str) -> IResult<&str, Expr> {
+    let return_parser = tuple((tag("return"), many0(statement_parser)));
+
+    map(return_parser, |stmt| {
+        // 単数の式ステートメント
+        Expr::Return(stmt.1)
+    })(s)
 }
 
 /// 複合式のパーサ

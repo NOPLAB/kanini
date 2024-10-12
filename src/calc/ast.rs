@@ -27,6 +27,7 @@ pub struct DirectDeclarator {
     identifer: Box<Expr>,
     declarator: Box<Expr>,
     direct_declarator: Box<Expr>,
+    parameter_type_list: Option<Box<Expr>>,
 }
 
 impl DirectDeclarator {
@@ -40,6 +41,7 @@ impl DirectDeclarator {
             identifer: Box::new(identifier),
             declarator: Box::new(Expr::Eof(Eof::new())),
             direct_declarator: Box::new(Expr::Eof(Eof::new())),
+            parameter_type_list: None,
         }
     }
 
@@ -48,6 +50,7 @@ impl DirectDeclarator {
             declarator: Box::new(declarator),
             identifer: Box::new(Expr::Eof(Eof::new())),
             direct_declarator: Box::new(Expr::Eof(Eof::new())),
+            parameter_type_list: None,
         }
     }
 
@@ -59,6 +62,19 @@ impl DirectDeclarator {
             direct_declarator: Box::new(directdeclarator),
             identifer: Box::new(identifier),
             declarator: Box::new(Expr::Eof(Eof::new())),
+            parameter_type_list: None,
+        }
+    }
+
+    pub fn directdeclarator_parametertypelist(
+        identifier: Expr,
+        parameter_type_list: Expr,
+    ) -> DirectDeclarator {
+        DirectDeclarator {
+            direct_declarator: Box::new(Expr::Eof(Eof::new())),
+            identifer: Box::new(identifier),
+            declarator: Box::new(Expr::Eof(Eof::new())),
+            parameter_type_list: Some(Box::new(parameter_type_list)),
         }
     }
     /// Declaratorを評価する
@@ -140,13 +156,17 @@ impl ParameterDeclaration {
 /// expression-statement ::= {<expression>}? ;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Statement {
+    hoge: String,
     stmt: Expr,
 }
 
 impl Statement {
     /// ConstantVal init
     pub fn new(val: Expr) -> Statement {
-        Statement { stmt: val }
+        Statement {
+            hoge: String::from("hoge"),
+            stmt: val,
+        }
     }
 }
 
@@ -193,6 +213,7 @@ pub enum Expr {
     BinaryOp(Box<BinaryOp>),
     ExprStatement(Vec<Expr>),
     Statement(Box<Expr>),
+    Return(Vec<Expr>),
     Eof(Eof),
 }
 
@@ -204,6 +225,25 @@ impl Expr {
             Expr::ConstantVal(e) => e.eval(),
             Expr::BinaryOp(e) => e.eval(),
             _ => 0,
+        }
+    }
+}
+
+/// return
+#[derive(Debug, PartialEq, Clone)]
+
+pub struct Return {
+    statement: Statement,
+    foo1: i32,
+    foo2: i64,
+}
+
+impl Return {
+    pub fn new(val: Statement, hoge1: i32, hoge2: i64) -> Return {
+        Return {
+            statement: val,
+            foo1: hoge1,
+            foo2: hoge2,
         }
     }
 }
