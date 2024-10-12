@@ -12,8 +12,10 @@ use nom::multi::many0;
 use nom::multi::many1;
 use nom::IResult;
 
+use nom::character::complete::space0;
 use nom::combinator::opt;
 use nom::sequence::tuple;
+use nom::sequence::{delimited, pair};
 
 /// 翻訳ユニットのパーサ
 pub fn translation_unit_parser(s: &str) -> IResult<&str, Expr> {
@@ -27,26 +29,34 @@ pub fn translation_unit_parser(s: &str) -> IResult<&str, Expr> {
 
 /// 外部宣言のパーサ
 pub fn external_declaration_parser(s: &str) -> IResult<&str, Expr> {
-    return function_definition_parser(s);
+    let result = function_definition_parser(s);
+    return result;
 }
 
 /// 関数宣言のパーサ
 /// <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement>
 pub fn function_definition_parser(s: &str) -> IResult<&str, Expr> {
     let parser = tuple((
-        many1(declaration_specifier_parser),
-        many1(declarator_parser),
+        //opt(
+        many0(declaration_specifier_parser), //)
+        declarator_parser,
         compound_statement_parser,
     ));
     map(
         parser,
         |(declaration_specifier, declarator, compound_statement)| {
             // 単数の式ステートメント
+            //    if let Option(ds) = declaration_specifier {
+
             Expr::FunctionDefinitionParser(
-                Box::new(declaration_specifier),
+                declaration_specifier,
                 Box::new(declarator),
                 Box::new(compound_statement),
             )
+            /*
+            } else {
+                Expr::FunctionDefinitionParser(Box::new(declarator), Box::new(compound_statement))
+            }*/
         },
     )(s)
 }
@@ -122,27 +132,65 @@ pub fn declarator_parser(s: &str) -> IResult<&str, Expr> {
 ///                       | <direct-declarator> ( <parameter-type-list> )
 ///                       | <direct-declarator> ( {<identifier>}* )
 pub fn direct_declarator(s: &str) -> IResult<&str, Expr> {
-    let result = tuple((
-        identifier_parser,
-        opt(tuple((char('('), parameter_type_list, char(')')))),
-        opt(tuple((char('('), many0(identifier_parser), char(')')))),
+    let identifer = identifier_parser;
+
+    let directdeclarator_declarator = tuple((
+        /*direct_declarator,*/ tag("("),
+        declarator_parser,
+        tag(")"),
     ));
-    map(
-        result,
-        |(head_expr, direct_declarator_parameter_type_list, direct_declarator_identifer)| {
-            if let Option::Some(i) = direct_declarator_parameter_type_list {
-                // 引数のリスト
-                i.1
-            } else if let Option::Some(i) = direct_declarator_identifer {
-                println!("direct_declarator_identifer: {:?}", i);
-                // 単数の式
-                Expr::Identifier(head_expr)
-            } else {
-                // 単数の式
-                Expr::Identifier(head_expr)
-            }
-        },
-    )(s)
+
+    let directdeclarator_parametertypelist = tuple((
+        /*direct_declarator,*/ tag("("),
+        parameter_type_list,
+        tag(")"),
+    ));
+
+    let directdeclarator_identifier = tuple((
+        /*direct_declarator,*/
+        tag("("),
+        many0(identifier_parser),
+        tag(")"),
+    ));
+
+    alt((
+        map(identifer, |i| {
+            println!("{:?}", i);
+            i
+        }),
+        map(directdeclarator_declarator, |dd| {
+            println!("{:?}", dd);
+            dd.1
+        }),
+        map(directdeclarator_parametertypelist, |dp| {
+            println!("{:?}", dp);
+            dp.1
+        }),
+        map(directdeclarator_identifier, |di| {
+            println!("{:?}", di);
+            return Expr::Identifier(Identifier::new(String::from("OK")));
+        }),
+    ))(s)
+
+    /*
+    alt((
+        map(identifier_parser, |identifer| {
+            println!("{:?}", identifer);
+            Expr::Identifier(identifer)
+        }),
+        map(tuple((direct_declarator, char('('), char(')'))), |a| {
+            Expr::DirectDeclarator(DirectDeclarator::directdeclarator_identifier(
+                a.0,
+                Expr::Identifier(Identifier::new(String::from("OK"))),
+            ))
+        }),
+    ))(s)
+
+            tuple((direct_declarator, char('('), parameter_type_list, char(')'))),
+            tuple((char('('), many0(identifier_parser), char(')'))),
+        )),
+        |(head_expr)| match head_expr {},
+    );*/
 }
 
 /// <parameter-type-list> ::= <parameter-list>
@@ -293,11 +341,11 @@ pub fn constant_val_parser(s: &str) -> IResult<&str, ConstantVal> {
 }
 
 /// 識別子のパーサ
-pub fn identifier_parser(s: &str) -> IResult<&str, Identifier> {
+pub fn identifier_parser(s: &str) -> IResult<&str, Expr> {
     let (no_used, _) = opt(is_a(" "))(s)?;
     let (no_used, used) = alpha1(no_used)?;
     let (no_used, _) = opt(is_a(" "))(no_used)?;
-    Ok((no_used, Identifier::new(used.to_string())))
+    Ok((no_used, Expr::Identifier(Identifier::new(used.to_string()))))
 }
 
 #[test]
