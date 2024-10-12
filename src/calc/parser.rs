@@ -128,51 +128,33 @@ pub fn declarator_parser(s: &str) -> IResult<&str, Expr> {
 /// 直接宣言者のパーサ
 /// <direct-declarator> ::= <identifier>
 ///                       | ( <declarator> )
-///                       | <direct-declarator> [ {<constant-expression>}? ]
 ///                       | <direct-declarator> ( <parameter-type-list> )
+///                       | <direct-declarator> [ {<constant-expression>}? ]
 ///                       | <direct-declarator> ( {<identifier>}* )
 pub fn direct_declarator(s: &str) -> IResult<&str, Expr> {
+    let directdeclarator_declarator = tuple((tag("("), declarator_parser, tag(")")));
+    println!("{}", s);
+
+    let directdeclarator_parametertypelist = tuple((identifier_parser, char('('), char(')')));
+    /*
+    let directdeclarator_parametertypelist =
+        tuple((identifier_parser, char('('), parameter_type_list, char(')')));
+
+    */
+
     let identifer = identifier_parser;
-
-    let directdeclarator_declarator = tuple((
-        /*direct_declarator,*/ tag("("),
-        declarator_parser,
-        tag(")"),
-    ));
-
-    let directdeclarator_parametertypelist = tuple((
-        /*direct_declarator,*/ tag("("),
-        parameter_type_list,
-        tag(")"),
-    ));
-
-    let directdeclarator_identifier = tuple((
-        /*direct_declarator,*/
-        tag("("),
-        many0(identifier_parser),
-        tag(")"),
-    ));
+    //let directdeclarator_identifier = tuple((tag("("), many0(identifier_parser), tag(")")));
 
     alt((
-        map(identifer, |i| {
-            println!("{:?}", i);
-            i
-        }),
-        map(directdeclarator_declarator, |dd| {
-            println!("{:?}", dd);
-            dd.1
-        }),
-        map(directdeclarator_parametertypelist, |dp| {
-            println!("{:?}", dp);
-            dp.1
-        }),
-        map(directdeclarator_identifier, |di| {
-            println!("{:?}", di);
-            return Expr::Identifier(Identifier::new(String::from("OK")));
-        }),
+        map(identifer, |i| i),
+        map(directdeclarator_declarator, |dd| dd.1),
+        map(directdeclarator_parametertypelist, |dp| dp.0),
     ))(s)
 
     /*
+
+
+
     alt((
         map(identifier_parser, |identifer| {
             println!("{:?}", identifer);
