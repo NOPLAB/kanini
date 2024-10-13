@@ -4,8 +4,6 @@ use crate::calc::expr_eval;
 
 use std::io::Write;
 
-fn sub_main() {}
-
 fn main() {
     unsafe { backtrace_on_stack_overflow::enable() };
     loop {
