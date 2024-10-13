@@ -1,32 +1,3 @@
-/// 関数定義を表す
-/// <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement>
-#[derive(Debug, PartialEq, Clone)]
-pub struct FunctionDefinitionParser {
-    type_specifier: TypeSpecifier,
-    declarator: Identifier,
-    expr_stmt: ExprStatement,
-}
-
-impl FunctionDefinitionParser {
-    /// 生成する
-    pub fn new(
-        type_specifier: TypeSpecifier,
-        declarator: Identifier,
-        expr_stmt: ExprStatement,
-    ) -> FunctionDefinitionParser {
-        FunctionDefinitionParser {
-            type_specifier,
-            declarator,
-            expr_stmt,
-        }
-    }
-
-    /// 関数を評価する
-    pub fn eval(&self) -> FunctionDefinitionParser {
-        self.clone()
-    }
-}
-
 /// Declarattor
 #[derive(Debug, PartialEq, Clone)]
 pub struct Declarator {
@@ -50,6 +21,68 @@ impl Declarator {
         self.clone()
     }
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct DirectDeclarator {
+    identifer: Box<Expr>,
+    declarator: Box<Expr>,
+    direct_declarator: Box<Expr>,
+    parameter_type_list: Option<Box<Expr>>,
+}
+
+impl DirectDeclarator {
+    /// <direct-declarator> ::= <identifier>
+    ///                       | ( <declarator> )
+    ///                       | <direct-declarator> [ {<constant-expression>}? ]
+    ///                       | <direct-declarator> ( <parameter-type-list> )
+    ///                       | <direct-declarator> ( {<identifier>}* )
+    pub fn identifier(identifier: Expr) -> DirectDeclarator {
+        DirectDeclarator {
+            identifer: Box::new(identifier),
+            declarator: Box::new(Expr::Eof(Eof::new())),
+            direct_declarator: Box::new(Expr::Eof(Eof::new())),
+            parameter_type_list: None,
+        }
+    }
+
+    pub fn declarator(declarator: Expr) -> DirectDeclarator {
+        DirectDeclarator {
+            declarator: Box::new(declarator),
+            identifer: Box::new(Expr::Eof(Eof::new())),
+            direct_declarator: Box::new(Expr::Eof(Eof::new())),
+            parameter_type_list: None,
+        }
+    }
+
+    pub fn directdeclarator_identifier(
+        directdeclarator: Expr,
+        identifier: Expr,
+    ) -> DirectDeclarator {
+        DirectDeclarator {
+            direct_declarator: Box::new(directdeclarator),
+            identifer: Box::new(identifier),
+            declarator: Box::new(Expr::Eof(Eof::new())),
+            parameter_type_list: None,
+        }
+    }
+
+    pub fn directdeclarator_parametertypelist(
+        identifier: Expr,
+        parameter_type_list: Expr,
+    ) -> DirectDeclarator {
+        DirectDeclarator {
+            direct_declarator: Box::new(Expr::Eof(Eof::new())),
+            identifer: Box::new(identifier),
+            declarator: Box::new(Expr::Eof(Eof::new())),
+            parameter_type_list: Some(Box::new(parameter_type_list)),
+        }
+    }
+    /// Declaratorを評価する
+    pub fn eval(&self) -> DirectDeclarator {
+        self.clone()
+    }
+}
+
 /*
 /// DirectDeclarattor
 #[derive(Debug, PartialEq, Clone)]
@@ -123,22 +156,56 @@ impl ParameterDeclaration {
 /// expression-statement ::= {<expression>}? ;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Statement {
+    hoge: String,
     stmt: Expr,
 }
 
 impl Statement {
     /// ConstantVal init
     pub fn new(val: Expr) -> Statement {
-        Statement { stmt: val }
+        Statement {
+            hoge: String::from("hoge"),
+            stmt: val,
+        }
+    }
+}
+
+/// 関数定義を表す
+/// <function-definition> ::= {<declaration-specifier>}* <declarator> {<declaration>}* <compound-statement>
+#[derive(Debug, PartialEq, Clone)]
+pub struct FunctionDefinitionParser {
+    type_specifier: TypeSpecifier,
+    declarator: Identifier,
+    expr_stmt: ExprStatement,
+}
+
+impl FunctionDefinitionParser {
+    /// 生成する
+    pub fn new(
+        type_specifier: TypeSpecifier,
+        declarator: Identifier,
+        expr_stmt: ExprStatement,
+    ) -> FunctionDefinitionParser {
+        FunctionDefinitionParser {
+            type_specifier,
+            declarator,
+            expr_stmt,
+        }
+    }
+
+    /// 関数を評価する
+    pub fn eval(&self) -> FunctionDefinitionParser {
+        self.clone()
     }
 }
 
 /// 任意の式を表す
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
-    FunctionDefinitionParser(Box<Vec<Expr>>, Box<Vec<Expr>>, Box<Expr>),
+    FunctionDefinitionParser(Vec<Expr>, Box<Expr>, Box<Expr>),
     ParameterTypeList(ParameterTypeList),
     ParameterDeclaration(Vec<Expr>, Declarator),
+    DirectDeclarator(DirectDeclarator),
     Declarator(Box<Expr>),
     TypeSpecifier(TypeSpecifier),
     Identifier(Identifier),
@@ -146,6 +213,7 @@ pub enum Expr {
     BinaryOp(Box<BinaryOp>),
     ExprStatement(Vec<Expr>),
     Statement(Box<Expr>),
+    Return(Vec<Expr>),
     Eof(Eof),
 }
 
@@ -157,6 +225,25 @@ impl Expr {
             Expr::ConstantVal(e) => e.eval(),
             Expr::BinaryOp(e) => e.eval(),
             _ => 0,
+        }
+    }
+}
+
+/// return
+#[derive(Debug, PartialEq, Clone)]
+
+pub struct Return {
+    statement: Statement,
+    foo1: i32,
+    foo2: i64,
+}
+
+impl Return {
+    pub fn new(val: Statement, hoge1: i32, hoge2: i64) -> Return {
+        Return {
+            statement: val,
+            foo1: hoge1,
+            foo2: hoge2,
         }
     }
 }
