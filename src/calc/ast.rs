@@ -213,6 +213,7 @@ pub enum Expr {
     BinaryOp(Box<BinaryOp>),
     ExprStatement(Vec<Expr>),
     Statement(Box<Expr>),
+    PostfixExpression(PostfixExpression),
     Return(Vec<Expr>),
     Eof(Eof),
 }
@@ -225,6 +226,28 @@ impl Expr {
             Expr::ConstantVal(e) => e.eval(),
             Expr::BinaryOp(e) => e.eval(),
             _ => 0,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct PostfixExpression {
+    assignment_expression: Vec<Expr>,
+    factor: Box<Expr>,
+}
+
+impl PostfixExpression {
+    pub fn new(factor: Expr, ae: Vec<Expr>) -> PostfixExpression {
+        PostfixExpression {
+            factor: Box::new(factor),
+            assignment_expression: ae,
+        }
+    }
+
+    pub fn assignment_expression(ae: Vec<Expr>) -> PostfixExpression {
+        PostfixExpression {
+            factor: Box::new(Expr::Eof(Eof::new())),
+            assignment_expression: ae,
         }
     }
 }

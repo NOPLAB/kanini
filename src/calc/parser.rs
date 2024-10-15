@@ -236,11 +236,17 @@ pub fn selection_statement_parser(s: &str) -> IResult<&str, Expr> {
 ///                    | return {<expression>}? ;
 
 pub fn jump_statement_parser(s: &str) -> IResult<&str, Expr> {
-    let return_parser = tuple((tag("return"), many0(statement_parser)));
+    let return_parser = tuple((
+        tag("return"),
+        opt(is_a(" ")),
+        many0(expression_parser),
+        char(';'),
+        opt(is_a(" ")),
+    ));
 
     map(return_parser, |stmt| {
         // 単数の式ステートメント
-        Expr::Return(stmt.1)
+        Expr::Return(stmt.2)
     })(s)
 }
 
@@ -255,7 +261,7 @@ pub fn expr_statement_parser(s: &str) -> IResult<&str, Expr> {
 }
 
 pub fn statement_parser(s: &str) -> IResult<&str, Expr> {
-    let x = tuple((expr_parser, char(';'), opt(is_a(" "))));
+    let x = tuple((expression_parser, char(';'), opt(is_a(" "))));
 
     map(x, |(head_expr, _, _)| {
         // 単数の式
@@ -263,15 +269,36 @@ pub fn statement_parser(s: &str) -> IResult<&str, Expr> {
     })(s)
 }
 
+pub fn expression_parser(s: &str) -> IResult<&str, Expr> {
+    let a = tuple((additive_expression_parser, char(',')));
+    let parser_with_comma = many1(a);
+    let parser = additive_expression_parser;
+
+    alt((
+        map(parser_with_comma, |head_expr| {
+            let mut exprs: Vec<Expr> = Vec::new();
+            for (expr, _) in head_expr {
+                // charの部分は無視
+                exprs.push(expr);
+            }
+            Expr::ExprStatement(exprs)
+        }),
+        map(parser, |expr_s| Expr::Statement(Box::new(expr_s))),
+    ))(s)
+}
+
 /// 式のパーサ
-pub fn expr_parser(s: &str) -> IResult<&str, Expr> {
+pub fn additive_expression_parser(s: &str) -> IResult<&str, Expr> {
     let op_kind_parser = map(alt((char('+'), char('-'))), |op_char| match op_char {
         '+' => OpKind::Add,
         '-' => OpKind::Sub,
         _ => panic!("error!"),
     });
 
-    let binary_parser = tuple((term_parser, opt(tuple((op_kind_parser, expr_parser)))));
+    let binary_parser = tuple((
+        term_parser,
+        opt(tuple((op_kind_parser, additive_expression_parser))),
+    ));
 
     map(binary_parser, |(head_expr, tail_expr_opt)| {
         if let Option::Some((op_kind, tail_expr)) = tail_expr_opt {
@@ -292,7 +319,10 @@ pub fn term_parser(s: &str) -> IResult<&str, Expr> {
     });
 
     // 掛け算、割り算のパーサ
-    let binary_parser = tuple((factor_parser, opt(tuple((op_kind_parser, term_parser)))));
+    let binary_parser = tuple((
+        postfix_expression_parser,
+        opt(tuple((op_kind_parser, term_parser))),
+    ));
 
     // 掛け算、割り算のパーサのパースされた値をMapで調整
     map(binary_parser, |(head_expr, tail_expr_opt)| {
@@ -303,31 +333,64 @@ pub fn term_parser(s: &str) -> IResult<&str, Expr> {
         }
     })(s)
 }
-/// 因子のパーサ
-pub fn factor_parser(s: &str) -> IResult<&str, Expr> {
+
+///
+/// <postfix-expression> ::= <primary-expression>
+///                        | <postfix-expression> [ <expression> ]
+///                        | <postfix-expression> ( {<assignment-expression>}* )
+///                        | <postfix-expression> . <identifier>
+///                        | <postfix-expression> -> <identifier>
+///                        | <postfix-expression> ++
+///                        | <postfix-expression> --
+pub fn postfix_expression_parser(s: &str) -> IResult<&str, Expr> {
+    //((factor_parser, postfix_expression_expression_parser))(s)?;
+    let i_a = tuple((
+        factor_parser,
+        many1(postfix_expression_assignment_expression_parser),
+    ));
     alt((
-        map(constant_val_parser, |constant_val| {
-            Expr::ConstantVal(constant_val)
+        map(i_a, |(i, assignment)| {
+            Expr::PostfixExpression(PostfixExpression::new(i, assignment))
         }),
-        paren_expr_parser,
+        map(factor_parser, |i| i), //      postfix_expression_expression_parser,
     ))(s)
 }
 
-#[test]
-fn factor_parser_test() {
-    let (_, actual) = factor_parser("4").unwrap();
-    let expect = Expr::ConstantVal(ConstantVal::new(4));
-    assert_eq!(actual, expect);
+pub fn postfix_expression_assignment_expression_parser(s: &str) -> IResult<&str, Expr> {
+    let (no_used, _) = char('(')(s)?;
+    let (no_used, expr) = many0(expression_parser)(no_used)?;
+    let (no_used, _) = char(')')(no_used)?;
+    Ok((
+        no_used,
+        Expr::PostfixExpression(PostfixExpression::assignment_expression(expr)),
+    ))
+}
 
-    let (_, actual) = factor_parser("(3)").unwrap();
-    let expect = Expr::ConstantVal(ConstantVal::new(3));
-    assert_eq!(actual, expect);
+/*
+pub fn postfix_expression_expression_parser(s: &str) -> IResult<&str, Expr> {
+    //let (un_used, used) = postfix_expression_parser(s)?;
+    let (un_used, used) = char('[')(s)?;
+    let (un_used, _) = char(']')(un_used)?;
+
+    Ok((un_used, used))
+}*/
+
+/// 因子のパーサ
+/// primary-expression
+pub fn factor_parser(s: &str) -> IResult<&str, Expr> {
+    alt((
+        identifier_parser,
+        map(constant_val_parser, |constant_val| {
+            Expr::ConstantVal(constant_val)
+        }),
+        paren_additive_parser,
+    ))(s)
 }
 
 /// 丸括弧で囲まれた式のパーサ
-pub fn paren_expr_parser(s: &str) -> IResult<&str, Expr> {
+pub fn paren_additive_parser(s: &str) -> IResult<&str, Expr> {
     let (no_used, _) = char('(')(s)?;
-    let (no_used, expr) = expr_parser(no_used)?;
+    let (no_used, expr) = expression_parser(no_used)?;
     let (no_used, _) = char(')')(no_used)?;
     Ok((no_used, expr))
 }
@@ -351,9 +414,83 @@ pub fn identifier_parser(s: &str) -> IResult<&str, Expr> {
     Ok((no_used, Expr::Identifier(Identifier::new(used.to_string()))))
 }
 
-#[test]
-fn constant_val_parser_test() {
-    let (_, actual) = constant_val_parser("889").unwrap();
-    let expect = ConstantVal::new(889);
-    assert_eq!(actual, expect);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_additive_expression_parser() {
+        let input = "13-5+1";
+        let (rest, result) = additive_expression_parser(input).unwrap();
+        let r = Expr::BinaryOp(Box::new(BinaryOp::new(
+            OpKind::Sub,
+            Expr::ConstantVal(ConstantVal::new(13)),
+            Expr::BinaryOp(Box::new(BinaryOp::new(
+                OpKind::Add,
+                Expr::ConstantVal(ConstantVal::new(5)),
+                Expr::ConstantVal(ConstantVal::new(1)),
+            ))),
+        )));
+        assert_eq!(rest, "");
+        assert_eq!(result, r);
+    }
+    #[test]
+    fn test_postfix_expression_parser_success() {
+        // 正常系: 正しい後置式が解析できる
+        let input = "a(j)";
+        let (rest, result) = postfix_expression_parser(input).unwrap();
+        assert_eq!(rest, "");
+        assert_eq!(
+            result,
+            Expr::PostfixExpression(PostfixExpression::new(
+                Expr::Identifier(Identifier::new(String::from("a"))),
+                vec![Expr::PostfixExpression(PostfixExpression::new(
+                    Expr::Eof(Eof::new()),
+                    vec![Expr::Statement(Box::new(Expr::Identifier(
+                        Identifier::new(String::from("j"))
+                    )))],
+                ))]
+            ))
+        );
+
+        let input = "a(j, k, l)";
+        let (rest, result) = postfix_expression_parser(input).unwrap();
+        assert_eq!(rest, "");
+        assert_eq!(
+            result,
+            Expr::PostfixExpression(PostfixExpression::new(
+                Expr::Identifier(Identifier::new(String::from("a"))),
+                vec![Expr::PostfixExpression(PostfixExpression::new(
+                    Expr::Eof(Eof::new()),
+                    vec![
+                        Expr::ExprStatement(vec![
+                            Expr::Identifier(Identifier::new(String::from("j"))),
+                            Expr::Identifier(Identifier::new(String::from("k"))),
+                        ]),
+                        Expr::Statement(Box::new(Expr::Identifier(Identifier::new(String::from(
+                            "l"
+                        ))))),
+                    ],
+                ))]
+            ))
+        );
+    }
+
+    #[test]
+    fn test_factor_parser() {
+        let (_, actual) = factor_parser("4").unwrap();
+        let expect = Expr::ConstantVal(ConstantVal::new(4));
+        assert_eq!(actual, expect);
+
+        let (_, actual) = factor_parser("(3)").unwrap();
+        let expect = Expr::Statement(Box::new(Expr::ConstantVal(ConstantVal::new(3))));
+        assert_eq!(actual, expect);
+    }
+
+    #[test]
+    fn test_constant_val_parser() {
+        let (_, actual) = constant_val_parser("889").unwrap();
+        let expect = ConstantVal::new(889);
+        assert_eq!(actual, expect);
+    }
 }
