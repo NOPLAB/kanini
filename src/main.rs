@@ -6,6 +6,16 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::Write;
 
+fn eval(expr: &str) -> Result<(), String> {
+    let value = match expr_eval(&expr) {
+        Ok(value) => value,
+        _ => return Err("構文エラー".to_string()),
+    };
+    println!("{:?}", value);
+
+    Ok(())
+}
+
 fn interpreter() -> Result<(), String> {
     // インタプリタモード
     print!("> ");
@@ -13,34 +23,26 @@ fn interpreter() -> Result<(), String> {
 
     let mut s = String::new();
     std::io::stdin().read_line(&mut s).ok();
-    let value = match expr_eval(&s) {
-        Ok(value) => value,
-        _ => return Err("構文エラー".to_string()),
-    };
-    println!("{:?}", value);
 
-    Ok(())
-    // -----------------
+    eval(&s)
 }
 
 fn read_file(filename: &str) -> Result<(), String> {
+    // ファイル読み込み→実行モード
     // ファイルが見つかりませんでした
     let mut f = match File::open(filename) {
         Err(e) => return Err(e.to_string()),
         Ok(value) => value,
-    }; //.expect("file not found");
-    let mut contents = String::new();
-    f.read_to_string(&mut contents)
-        // ファイルの読み込み中に問題がありました
-        .expect("something went wrong reading the file");
-
-    let value = match expr_eval(&contents.as_str()) {
-        Ok(value) => value,
-        _ => return Err("構文エラー".to_string()),
     };
 
-    println!("{:?}", value);
-    Ok(())
+    let mut contents = String::new();
+    if let Ok((r)) = f.read_to_string(&mut contents) {
+    } else {
+        // ファイルの読み込み中に問題がありました
+        return Err("something went wrong reading the file".to_string());
+    }
+
+    eval(&contents.as_str())
 }
 
 fn command_parse() -> Result<(), String> {
