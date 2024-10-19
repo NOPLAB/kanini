@@ -21,19 +21,34 @@ fn interpreter() -> Result<(), String> {
     // -----------------
 }
 
-fn main() {
+fn command_parse() -> Result<(), String> {
     // コマンド引数を取得
     let args: Vec<String> = std::env::args().collect();
-    let mode = args[1].as_str();
+    if args.len() > 1 {
+        let mode = args[1].as_str();
 
-    match mode {
-        "-i" => loop {
-            interpreter();
-        },
-        _ => {
-            println!("ファイル内実行モード");
+        match mode {
+            "-i" => loop {
+                let _ = match interpreter() {
+                    Ok(()) => (),
+                    Err(e) => println!("!ERROR!: {}", e),
+                };
+            },
+            _ => {
+                println!("ファイル内実行モード");
+                return Err("ファイルが見つかりません".to_string());
+            }
         }
+    } else {
+        println!("kanini ver 0.1");
     }
+    Ok(())
+}
+
+fn main() {
     // スタックオーバーフローの際の原因特定
     unsafe { backtrace_on_stack_overflow::enable() };
+
+    // TODO: エラーの際の実装
+    let _ = command_parse();
 }
