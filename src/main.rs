@@ -29,20 +29,18 @@ fn interpreter() -> Result<(), String> {
 
 fn read_file(filename: &str) -> Result<(), String> {
     // ファイル読み込み→実行モード
-    // ファイルが見つかりませんでした
-    let mut f = match File::open(filename) {
-        Err(e) => return Err(e.to_string()),
-        Ok(value) => value,
-    };
-
-    let mut contents = String::new();
-    if let Ok((r)) = f.read_to_string(&mut contents) {
-    } else {
-        // ファイルの読み込み中に問題がありました
-        return Err("something went wrong reading the file".to_string());
+    match File::open(filename) {
+        Ok(mut value) => {
+            let mut contents = String::new();
+            match value.read_to_string(&mut contents) {
+                Ok(_) => eval(&contents.as_str()),
+                // ファイルの読み込み中に問題がありました
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        // ファイルが見つかりませんでした
+        Err(e) => Err(e.to_string()),
     }
-
-    eval(&contents.as_str())
 }
 
 fn command_parse() -> Result<(), String> {
