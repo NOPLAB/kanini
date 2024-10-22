@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use super::ast::*;
 use nom::branch::alt;
 use nom::branch::permutation;
@@ -152,7 +154,7 @@ pub fn direct_declarator(s: &str) -> IResult<&str, Expr> {
 ///                         | <parameter-list> , ...
 
 pub fn parameter_type_list(s: &str) -> IResult<&str, Expr> {
-    let result = tuple((opt(is_a(" ")), many0(parameter_list), opt(is_a(" "))));
+    let result = permutation((multispace0, many0(parameter_list), multispace0));
 
     map(result, |(_, param_list, _)| {
         Expr::ParameterTypeList(ParameterTypeList::new(param_list))
@@ -193,8 +195,7 @@ pub fn parameter_declaration(s: &str) -> IResult<&str, Expr> {
 ///               | <iteration-statement>
 ///               | <jump-statement>
 pub fn compound_statement_parser(s: &str) -> IResult<&str, Expr> {
-    let (no_used, _) = opt(is_a(" "))(s)?;
-    let (no_used, _) = char('{')(no_used)?;
+    let (no_used, _) = permutation((multispace0, char('{'), multispace0))(s)?;
 
     let expr_statement = expr_statement_parser;
     let selection_statement = selection_statement_parser;
@@ -215,8 +216,7 @@ pub fn compound_statement_parser(s: &str) -> IResult<&str, Expr> {
         }),
     ))(no_used)?;
 
-    let (no_used, _) = char('}')(no_used)?;
-    let (no_used, _) = opt(is_a(" "))(no_used)?;
+    let (no_used, _) = permutation((multispace0, char('}'), multispace0))(no_used)?;
 
     Ok((no_used, expr))
 }
@@ -238,10 +238,10 @@ pub fn selection_statement_parser(s: &str) -> IResult<&str, Expr> {
 pub fn jump_statement_parser(s: &str) -> IResult<&str, Expr> {
     let return_parser = tuple((
         tag("return"),
-        opt(is_a(" ")),
+        multispace0,
         many0(expression_parser),
         char(';'),
-        opt(is_a(" ")),
+        multispace0,
     ));
 
     map(return_parser, |stmt| {
@@ -261,7 +261,7 @@ pub fn expr_statement_parser(s: &str) -> IResult<&str, Expr> {
 }
 
 pub fn statement_parser(s: &str) -> IResult<&str, Expr> {
-    let x = tuple((expression_parser, char(';'), opt(is_a(" "))));
+    let x = tuple((expression_parser, char(';'), multispace0));
 
     map(x, |(head_expr, _, _)| {
         // 単数の式
@@ -398,20 +398,21 @@ pub fn paren_additive_parser(s: &str) -> IResult<&str, Expr> {
 /// 定数のパーサ
 pub fn constant_val_parser(s: &str) -> IResult<&str, ConstantVal> {
     use std::str::FromStr;
-
-    let (no_used, _) = opt(is_a(" "))(s)?;
-    let (no_used, used) = digit1(no_used)?;
-    let (no_used, _) = opt(is_a(" "))(no_used)?;
-    let val = FromStr::from_str(used).unwrap();
+    let (no_used, used) = permutation((multispace0, digit1, multispace0))(s)?;
+    let val = FromStr::from_str(used.1).unwrap();
     Ok((no_used, ConstantVal::new(val)))
 }
 
 /// 識別子のパーサ
 pub fn identifier_parser(s: &str) -> IResult<&str, Expr> {
-    let (no_used, _) = opt(is_a(" "))(s)?;
-    let (no_used, used) = alpha1(no_used)?;
-    let (no_used, _) = opt(is_a(" "))(no_used)?;
-    Ok((no_used, Expr::Identifier(Identifier::new(used.to_string()))))
+    // アンダーバーかアルファベットのいずれか
+
+    let (no_used, used) = permutation((multispace0, alpha1, multispace0))(s)?;
+
+    Ok((
+        no_used,
+        Expr::Identifier(Identifier::new(used.1.to_string())),
+    ))
 }
 
 #[cfg(test)]
