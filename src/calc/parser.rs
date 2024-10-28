@@ -1,21 +1,15 @@
-use std::ops::Mul;
-
 use super::ast::*;
 use nom::branch::alt;
 use nom::branch::permutation;
-use nom::bytes::complete::is_a;
 use nom::bytes::complete::tag;
-use nom::character::complete::alpha0;
 use nom::character::complete::alpha1;
 use nom::character::complete::char;
 use nom::character::complete::digit1;
 use nom::character::complete::multispace0;
 use nom::combinator::map;
 use nom::combinator::opt;
-use nom::combinator::recognize;
 use nom::multi::many0;
 use nom::multi::many1;
-use nom::sequence::pair;
 use nom::sequence::tuple;
 use nom::IResult;
 
@@ -406,40 +400,10 @@ pub fn constant_val_parser(s: &str) -> IResult<&str, ConstantVal> {
     Ok((no_used, ConstantVal::new(val)))
 }
 
-/*
-    map(i, |(&alpha, opt_underbar)| {
-                if let Option::Some(underbar) = opt_underbar {
-                    if alpha != "" {
-                        // アルファベットとアンダーバーが混在する
-                    } else {
-                        // アンダーバーのみ
-                    }
-                } else if alpha != "" {
-                    // アルファベットのみ
-                } else {
-                    // 何もなし
-                }
-})
-    */
 pub fn many_alpha_s(s: &str) -> IResult<&str, String> {
-    let (no_used, parser) = tuple((many1(alpha1), many1(char('_'))))(s)?;
-    println!("parsed: {:?}", parser);
-
-    let mut result = String::new();
-
-    //for p in parser {
-    // 文字列部分
-    for i in parser.0 {
-        result.push_str(i);
-    }
-    for i in parser.1 {
-        result.push_str("_");
-    }
-    //}
-
-    println!("{}", result);
-
-    Ok((no_used, result.to_string()))
+    let (no_used, parser) = map(alt((tag("_"), alpha1, digit1)), |type_str| type_str)(s)?;
+    //let (no_used, parser) = tuple((many1(alpha1), many1(char('_'))))(s)?;
+    Ok((no_used, parser.to_string()))
 }
 
 // 文字列のパーサ
