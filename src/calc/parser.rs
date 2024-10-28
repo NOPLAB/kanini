@@ -5,17 +5,19 @@ use nom::branch::alt;
 use nom::branch::permutation;
 use nom::bytes::complete::is_a;
 use nom::bytes::complete::tag;
+use nom::character::complete::alpha0;
 use nom::character::complete::alpha1;
 use nom::character::complete::char;
 use nom::character::complete::digit1;
 use nom::character::complete::multispace0;
 use nom::combinator::map;
+use nom::combinator::opt;
+use nom::combinator::recognize;
 use nom::multi::many0;
 use nom::multi::many1;
-use nom::IResult;
-
-use nom::combinator::opt;
+use nom::sequence::pair;
 use nom::sequence::tuple;
+use nom::IResult;
 
 /// 翻訳ユニットのパーサ
 pub fn translation_unit_parser(s: &str) -> IResult<&str, Expr> {
@@ -383,6 +385,7 @@ pub fn factor_parser(s: &str) -> IResult<&str, Expr> {
         map(constant_val_parser, |constant_val| {
             Expr::ConstantVal(constant_val)
         }),
+        string_val_parser,
         paren_additive_parser,
     ))(s)
 }
@@ -401,6 +404,60 @@ pub fn constant_val_parser(s: &str) -> IResult<&str, ConstantVal> {
     let (no_used, used) = permutation((multispace0, digit1, multispace0))(s)?;
     let val = FromStr::from_str(used.1).unwrap();
     Ok((no_used, ConstantVal::new(val)))
+}
+
+/*
+    map(i, |(&alpha, opt_underbar)| {
+                if let Option::Some(underbar) = opt_underbar {
+                    if alpha != "" {
+                        // アルファベットとアンダーバーが混在する
+                    } else {
+                        // アンダーバーのみ
+                    }
+                } else if alpha != "" {
+                    // アルファベットのみ
+                } else {
+                    // 何もなし
+                }
+})
+    */
+pub fn many_alpha_s(s: &str) -> IResult<&str, String> {
+    let (no_used, parser) = tuple((many1(alpha1), many1(char('_'))))(s)?;
+    println!("parsed: {:?}", parser);
+
+    let mut result = String::new();
+
+    //for p in parser {
+    // 文字列部分
+    for i in parser.0 {
+        result.push_str(i);
+    }
+    for i in parser.1 {
+        result.push_str("_");
+    }
+    //}
+
+    println!("{}", result);
+
+    Ok((no_used, result.to_string()))
+}
+
+// 文字列のパーサ
+pub fn string_val_parser(s: &str) -> IResult<&str, Expr> {
+    let (no_used, used) = permutation((
+        multispace0,
+        tag("\""),
+        many0(many_alpha_s),
+        tag("\""),
+        multispace0,
+    ))(s)?;
+
+    let mut r = String::new();
+    for i in used.2 {
+        r.push_str(i.as_str());
+    }
+
+    Ok((no_used, Expr::StringVal(r)))
 }
 
 /// 識別子のパーサ
@@ -435,6 +492,7 @@ mod tests {
         assert_eq!(rest, "");
         assert_eq!(result, r);
     }
+
     #[test]
     fn test_postfix_expression_parser_success() {
         // 正常系: 正しい後置式が解析できる
