@@ -2,10 +2,10 @@ use super::ast::*;
 use nom::branch::alt;
 use nom::branch::permutation;
 use nom::bytes::complete::tag;
-use nom::character::complete::alpha1;
-use nom::character::complete::char;
+use nom::bytes::complete::take_till;
 use nom::character::complete::digit1;
 use nom::character::complete::multispace0;
+use nom::character::complete::{alpha1, alphanumeric1, char};
 use nom::combinator::map;
 use nom::combinator::opt;
 use nom::multi::many0;
@@ -375,10 +375,10 @@ pub fn postfix_expression_expression_parser(s: &str) -> IResult<&str, Expr> {
 /// primary-expression
 pub fn factor_parser(s: &str) -> IResult<&str, Expr> {
     alt((
-        identifier_parser,
         map(constant_val_parser, |constant_val| {
             Expr::ConstantVal(constant_val)
         }),
+        identifier_parser,
         string_val_parser,
         paren_additive_parser,
     ))(s)
@@ -401,8 +401,7 @@ pub fn constant_val_parser(s: &str) -> IResult<&str, ConstantVal> {
 }
 
 pub fn many_alpha_s(s: &str) -> IResult<&str, String> {
-    let (no_used, parser) = map(alt((tag("_"), alpha1, digit1)), |type_str| type_str)(s)?;
-    //let (no_used, parser) = tuple((many1(alpha1), many1(char('_'))))(s)?;
+    let (no_used, parser) = map(alt((alphanumeric1, tag("_"))), |type_str| type_str)(s)?;
     Ok((no_used, parser.to_string()))
 }
 
@@ -411,29 +410,29 @@ pub fn string_val_parser(s: &str) -> IResult<&str, Expr> {
     let (no_used, used) = permutation((
         multispace0,
         tag("\""),
-        many0(many_alpha_s),
+        take_till(|c| c == '"'),
         tag("\""),
         multispace0,
     ))(s)?;
 
     let mut r = String::new();
-    for i in used.2 {
-        r.push_str(i.as_str());
-    }
 
+    r.push_str(used.2);
     Ok((no_used, Expr::StringVal(r)))
 }
 
 /// 識別子のパーサ
 pub fn identifier_parser(s: &str) -> IResult<&str, Expr> {
     // アンダーバーかアルファベットのいずれか
+    let (no_used, used) = permutation((multispace0, many1(many_alpha_s), multispace0))(s)?;
 
-    let (no_used, used) = permutation((multispace0, alpha1, multispace0))(s)?;
+    let mut result = String::new();
 
-    Ok((
-        no_used,
-        Expr::Identifier(Identifier::new(used.1.to_string())),
-    ))
+    for i in used.1 {
+        result.push_str(i.as_str());
+    }
+
+    Ok((no_used, Expr::Identifier(Identifier::new(result))))
 }
 
 #[cfg(test)]
@@ -514,6 +513,12 @@ mod tests {
     fn test_constant_val_parser() {
         let (_, actual) = constant_val_parser("889").unwrap();
         let expect = ConstantVal::new(889);
+        assert_eq!(actual, expect);
+    }
+    #[test]
+    fn test_identifier_parser() {
+        let (_, actual) = identifier_parser("test_4").unwrap();
+        let expect = Expr::Identifier(Identifier::new(String::from("test_4")));
         assert_eq!(actual, expect);
     }
 }
