@@ -17,3 +17,6 @@ int test3() {
 int test_4() {
   return "_h12!";
 }
+
+int test_5() {
+}
