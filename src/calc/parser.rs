@@ -1,21 +1,17 @@
-use std::ops::Mul;
-
 use super::ast::*;
 use nom::branch::alt;
 use nom::branch::permutation;
-use nom::bytes::complete::is_a;
 use nom::bytes::complete::tag;
-use nom::character::complete::alpha1;
-use nom::character::complete::char;
+use nom::bytes::complete::take_till;
 use nom::character::complete::digit1;
 use nom::character::complete::multispace0;
+use nom::character::complete::{alpha1, alphanumeric1, char};
 use nom::combinator::map;
+use nom::combinator::opt;
 use nom::multi::many0;
 use nom::multi::many1;
-use nom::IResult;
-
-use nom::combinator::opt;
 use nom::sequence::tuple;
+use nom::IResult;
 
 /// 翻訳ユニットのパーサ
 pub fn translation_unit_parser(s: &str) -> IResult<&str, Expr> {
@@ -188,24 +184,34 @@ pub fn parameter_declaration(s: &str) -> IResult<&str, Expr> {
 }
 
 /// compound-statementのパーサ
+/// <compound-statement> ::= { {<declaration>}* {<statement>}* }
+
+pub fn compound_statement_parser(s: &str) -> IResult<&str, Expr> {
+    let (no_used, expr) = permutation((
+        multispace0,
+        char('{'),
+        multispace0,
+        many0(statement_parser),
+        multispace0,
+        char('}'),
+        multispace0,
+    ))(s)?;
+
+    Ok((no_used, Expr::ExprStatement(expr.3)))
+}
+
 /// <statement> ::= <labeled-statement>
 ///               | <expression-statement>
 ///               | <compound-statement>
 ///               | <selection-statement>
 ///               | <iteration-statement>
 ///               | <jump-statement>
-pub fn compound_statement_parser(s: &str) -> IResult<&str, Expr> {
-    let (no_used, _) = permutation((multispace0, char('{'), multispace0))(s)?;
-
+pub fn statement_parser(s: &str) -> IResult<&str, Expr> {
     let expr_statement = expr_statement_parser;
     let selection_statement = selection_statement_parser;
     let jump_statement = jump_statement_parser;
 
     let (no_used, expr) = alt((
-        map(expr_statement, |es| {
-            println!("{:?}", es);
-            return es;
-        }),
         map(jump_statement, |js| {
             println!("{:?}", js);
             return js;
@@ -214,20 +220,13 @@ pub fn compound_statement_parser(s: &str) -> IResult<&str, Expr> {
             println!("{:?}", ss);
             return ss;
         }),
-    ))(no_used)?;
-
-    let (no_used, _) = permutation((multispace0, char('}'), multispace0))(no_used)?;
+        map(expr_statement, |es| {
+            println!("{:?}", es);
+            return es;
+        }),
+    ))(s)?;
 
     Ok((no_used, expr))
-}
-
-pub fn selection_statement_parser(s: &str) -> IResult<&str, Expr> {
-    let parser = many1(statement_parser);
-
-    map(parser, |stmt| {
-        // 単数の式ステートメント
-        Expr::ExprStatement(stmt)
-    })(s)
 }
 
 /// <jump-statement> ::= goto <identifier> ;
@@ -250,17 +249,32 @@ pub fn jump_statement_parser(s: &str) -> IResult<&str, Expr> {
     })(s)
 }
 
+pub fn selection_statement_parser(s: &str) -> IResult<&str, Expr> {
+    /*
+        let parser = many1(expression_loop_parser);
+
+        map(parser, |stmt| {
+            // 単数の式ステートメント
+            Expr::ExprStatement(stmt)
+        })(s)
+    */
+    expression_loop_parser(s)
+}
+
 /// 複合式のパーサ
 pub fn expr_statement_parser(s: &str) -> IResult<&str, Expr> {
-    let parser = many1(statement_parser);
+    /*
+    let parser = many0(expression_loop_parser);
 
     map(parser, |stmt| {
         // 単数の式ステートメント
         Expr::ExprStatement(stmt)
     })(s)
+    */
+    expression_loop_parser(s)
 }
 
-pub fn statement_parser(s: &str) -> IResult<&str, Expr> {
+pub fn expression_loop_parser(s: &str) -> IResult<&str, Expr> {
     let x = tuple((expression_parser, char(';'), multispace0));
 
     map(x, |(head_expr, _, _)| {
@@ -379,10 +393,11 @@ pub fn postfix_expression_expression_parser(s: &str) -> IResult<&str, Expr> {
 /// primary-expression
 pub fn factor_parser(s: &str) -> IResult<&str, Expr> {
     alt((
-        identifier_parser,
         map(constant_val_parser, |constant_val| {
             Expr::ConstantVal(constant_val)
         }),
+        identifier_parser,
+        string_val_parser,
         paren_additive_parser,
     ))(s)
 }
@@ -403,16 +418,39 @@ pub fn constant_val_parser(s: &str) -> IResult<&str, ConstantVal> {
     Ok((no_used, ConstantVal::new(val)))
 }
 
+pub fn many_alpha_s(s: &str) -> IResult<&str, String> {
+    let (no_used, parser) = map(alt((alphanumeric1, tag("_"))), |type_str| type_str)(s)?;
+    Ok((no_used, parser.to_string()))
+}
+
+// 文字列のパーサ
+pub fn string_val_parser(s: &str) -> IResult<&str, Expr> {
+    let (no_used, used) = permutation((
+        multispace0,
+        tag("\""),
+        take_till(|c| c == '"'),
+        tag("\""),
+        multispace0,
+    ))(s)?;
+
+    let mut r = String::new();
+
+    r.push_str(used.2);
+    Ok((no_used, Expr::StringVal(r)))
+}
+
 /// 識別子のパーサ
 pub fn identifier_parser(s: &str) -> IResult<&str, Expr> {
     // アンダーバーかアルファベットのいずれか
+    let (no_used, used) = permutation((multispace0, many1(many_alpha_s), multispace0))(s)?;
 
-    let (no_used, used) = permutation((multispace0, alpha1, multispace0))(s)?;
+    let mut result = String::new();
 
-    Ok((
-        no_used,
-        Expr::Identifier(Identifier::new(used.1.to_string())),
-    ))
+    for i in used.1 {
+        result.push_str(i.as_str());
+    }
+
+    Ok((no_used, Expr::Identifier(Identifier::new(result))))
 }
 
 #[cfg(test)]
@@ -435,6 +473,7 @@ mod tests {
         assert_eq!(rest, "");
         assert_eq!(result, r);
     }
+
     #[test]
     fn test_postfix_expression_parser_success() {
         // 正常系: 正しい後置式が解析できる
@@ -492,6 +531,12 @@ mod tests {
     fn test_constant_val_parser() {
         let (_, actual) = constant_val_parser("889").unwrap();
         let expect = ConstantVal::new(889);
+        assert_eq!(actual, expect);
+    }
+    #[test]
+    fn test_identifier_parser() {
+        let (_, actual) = identifier_parser("test_4").unwrap();
+        let expect = Expr::Identifier(Identifier::new(String::from("test_4")));
         assert_eq!(actual, expect);
     }
 }

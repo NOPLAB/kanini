@@ -210,6 +210,7 @@ pub enum Expr {
     TypeSpecifier(TypeSpecifier),
     Identifier(Identifier),
     ConstantVal(ConstantVal),
+    StringVal(String),
     BinaryOp(Box<BinaryOp>),
     ExprStatement(Vec<Expr>),
     Statement(Box<Expr>),
@@ -400,6 +401,22 @@ impl ConstantVal {
 }
 
 /// 文字列を表す
+#[derive(Debug, PartialEq, Clone)]
+pub struct StringVal(String);
+
+impl StringVal {
+    /// StringVal init
+    pub fn new(val: String) -> StringVal {
+        StringVal(val)
+    }
+
+    /// StringValの値を取得
+    pub fn eval(&self) -> String {
+        self.0.clone()
+    }
+}
+
+/// 任意トークンを表す
 #[derive(Debug, PartialEq, Clone)]
 pub struct Identifier(String);
 
